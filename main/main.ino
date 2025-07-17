@@ -4,7 +4,7 @@
   Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files.
   The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 */
-#include <mesh_controller.h>
+#include <Mesh.h>
 
 #include <TM1637Display.h>
 
@@ -29,8 +29,8 @@ unsigned long lastTrigger = 0;
 boolean startTimer = false;
 boolean motion = false;
 
-mesh_message transmissionMessage;
-
+Mesh mesh();
+Mesh::message transmissionMessage;
 
 //creating display
 TM1637Display display = TM1637Display(CLK, DIO);
@@ -68,7 +68,7 @@ void setup() {
   // Set motionSensor pin as interrupt, assign interrupt function and set RISING mode
   attachInterrupt(digitalPinToInterrupt(motionSensor), detectsMovement, RISING);
 
-  setupMesh();
+  mesh.init();
 }
 
 void loop() {
@@ -76,7 +76,7 @@ void loop() {
   if ((digitalRead(greenLed) == HIGH) && (motion == false)) {
     Serial.println("MOTION DETECTED!!!");
     transmissionMessage.dataType = PIR_SENSOR_MESSAGE_TYPE;
-    transmitData(transmissionMessage);
+    mesh.transmit(transmissionMessage);
     updateDisplay();
     motion = true;
   }

@@ -1,17 +1,10 @@
-#include "mesh_controller.h"
+#include "Mesh.h"
 
-//TODO turn file into class
-// REPLACE WITH THE MAC Address of your receiver
-uint8_t broadcastAddress[] = { 0xEC, 0x64, 0xC9, 0x5D, 0x22, 0x20 };
-uint8_t deviceMacAddress[6];
+Mesh::Mesh(){
+this->broadcastAddress = { 0xEC, 0x64, 0xC9, 0x5D, 0x22, 0x20 };
+}
 
-// Create a struct_message to hold incoming sensor readings
-mesh_message dataToReceive;
-
-esp_now_peer_info_t peerInfo;
-
-// Callback when data is sent
-void OnDataSentCallback(const uint8_t *mac_addr, esp_now_send_status_t status) {
+void Mesh::OnDataSentCallback(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
   if (status == 0) {
@@ -24,8 +17,7 @@ void OnDataSentCallback(const uint8_t *mac_addr, esp_now_send_status_t status) {
   }
 }
 
-// Callback when data is received
-void OnDataRecvCallback(const esp_now_recv_info *mac, const uint8_t *incomingData, int len) {
+void Mesh::OnDataRecvCallback(const esp_now_recv_info *mac, const uint8_t *incomingData, int len) {
   memcpy(&dataToReceive, incomingData, sizeof(dataToReceive));
   Serial.print("Bytes received: ");
   //digitalWrite(greenLed, HIGH);
@@ -37,7 +29,7 @@ void OnDataRecvCallback(const esp_now_recv_info *mac, const uint8_t *incomingDat
   Serial.println(len);
 }
 
-uint8_t *readMacAddress() {
+uint8_t *Mesh::readMacAddress() {
   uint8_t baseMac[6];
   esp_err_t ret = esp_wifi_get_mac(WIFI_IF_STA, baseMac);
   if (ret != ESP_OK) {
@@ -46,7 +38,7 @@ uint8_t *readMacAddress() {
   return baseMac;
 }
 
-void setupMesh() {
+void Mesh::init() {
 
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
@@ -82,7 +74,7 @@ void setupMesh() {
   esp_now_register_recv_cb(OnDataRecvCallback);
 }
 
-void transmitData(mesh_message dataToTransmit) {
+void Mesh::transmit(mesh_message dataToTransmit) {
   // Send message via ESP-NOW
   memcpy(dataToTransmit.originMacAddress, deviceMacAddress, 6);
 
