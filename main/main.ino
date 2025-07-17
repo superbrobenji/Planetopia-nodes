@@ -6,11 +6,6 @@
 */
 #include <Mesh.h>
 
-#include <TM1637Display.h>
-
-#define CLK 22  // The ESP32 pin GPIO22 connected to CLK
-#define DIO 23  // The ESP32 pin GPIO23 connected to DIO
-
 //to do with motion sensor don't know what yet
 #define timeSeconds 3
 
@@ -29,11 +24,8 @@ unsigned long lastTrigger = 0;
 boolean startTimer = false;
 boolean motion = false;
 
-Mesh mesh();
-Mesh::message transmissionMessage;
-
-//creating display
-TM1637Display display = TM1637Display(CLK, DIO);
+Mesh mesh;
+mesh_message transmissionMessage;
 
 
 // Variable to store if sending data was successful
@@ -45,6 +37,12 @@ void IRAM_ATTR detectsMovement() {
   digitalWrite(greenLed, HIGH);
   startTimer = true;
   lastTrigger = millis();
+}
+
+void dataRecvCallback(mesh_message message) {
+  digitalWrite(greenLed, HIGH);
+  delay(500);
+  digitalWrite(greenLed, LOW);
 }
 
 void setup() {
@@ -59,16 +57,14 @@ void setup() {
   pinMode(greenLed, OUTPUT);
   digitalWrite(greenLed, LOW);
 
-  display.clear();
-  display.setBrightness(3);
-
   // PIR Motion Sensor mode INPUT_PULLUP
   pinMode(motionSensor, INPUT_PULLUP);
+  
+  mesh.init();
+  mesh.linkDataRecvCallback(dataRecvCallback);
 
   // Set motionSensor pin as interrupt, assign interrupt function and set RISING mode
   attachInterrupt(digitalPinToInterrupt(motionSensor), detectsMovement, RISING);
-
-  mesh.init();
 }
 
 void loop() {
@@ -77,24 +73,14 @@ void loop() {
     Serial.println("MOTION DETECTED!!!");
     transmissionMessage.dataType = PIR_SENSOR_MESSAGE_TYPE;
     mesh.transmit(transmissionMessage);
-    updateDisplay();
     motion = true;
   }
-  
+
   // Turn off the LED after the number of seconds defined in the timeSeconds variable
   if (startTimer && (now - lastTrigger > (timeSeconds * 1000))) {
     Serial.println("Motion stopped...");
     digitalWrite(greenLed, LOW);
     startTimer = false;
     motion = false;
-  }
-}
-
-void updateDisplay() {
-  int i;
-  for (i = 0; i < 10; i++) {
-    display.showNumberDec(i);
-    delay(500);
-    display.clear();
   }
 }
