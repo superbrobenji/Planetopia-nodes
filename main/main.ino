@@ -1,7 +1,7 @@
 #define DEBUG
-#include "Mesh.h"
-#include "AdapterFactory.h"
-#include "Logger.h"
+#include "src/Mesh/Mesh.h"
+#include "src/Adapter/AdapterFactory.h"
+#include "src/utils/Logger.h"
 
 // Pins
 constexpr int redLed = 25;

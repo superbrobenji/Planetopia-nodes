@@ -1,5 +1,5 @@
 #include "AdapterFactory.h"
-#include "Logger.h"
+#include "src/utils/Logger.h"
 
 Adapter* AdapterFactory::createAdapter(adapter_types type, int pin) {
   switch (type) {

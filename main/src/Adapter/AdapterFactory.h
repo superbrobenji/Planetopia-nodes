@@ -2,7 +2,7 @@
 #define ADAPTER_FACTORY_H
 
 #include "Adapter.h"
-#include "PIR_Adapter.h"
+#include "src/Adapter/PIR_Adapter/PIR_Adapter.h"
 // #include "WiFi_Adapter.h"
 // #include "LED_Adapter.h"
 

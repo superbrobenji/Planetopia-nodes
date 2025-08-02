@@ -2,7 +2,7 @@
 #define PIR_ADAPTER_H
 
 #include <Arduino.h>
-#include "Adapter.h"
+#include "src/Adapter/Adapter.h"
 
 class PIR_Adapter : public Adapter {
 private:

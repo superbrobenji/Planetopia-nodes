@@ -6,7 +6,7 @@
 #include <WiFi.h>
 #include <Arduino.h>
 #include <esp_wifi.h>
-#include "Adapter.h"
+#include "src/Adapter/Adapter.h"
 
 struct mesh_message {
   uint8_t originMacAddress[6];
@@ -28,7 +28,7 @@ private:
   void printMac(const uint8_t mac[6]);
   void printMeshMessage(const mesh_message& msg);
 
-  static void onDataSentCallback(const uint8_t* mac_addr, esp_now_send_status_t status);
+  static void onDataSentCallback(const wifi_tx_info_t* mac_addr, esp_now_send_status_t status);
   void onDataRecvCallback(const esp_now_recv_info* mac, const uint8_t* incomingData, int len);
   static void dataRecvTrampoline(const esp_now_recv_info* mac_addr, const uint8_t* data, int len);
   void transmitCore(const adapter_types type, const uint8_t data[12]);

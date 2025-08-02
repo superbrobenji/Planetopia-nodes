@@ -1,5 +1,5 @@
 #include "Adapter.h"
-#include "Logger.h"
+#include "src/utils/Logger.h"
 
 Adapter::Adapter(int pin)
   : _pin(pin), _adapterType(UNKNOWN_ADAPTER), mesh_transmit_fn(nullptr) {

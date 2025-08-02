@@ -1,6 +1,6 @@
 #define DEBUG
 #include "Mesh.h"
-#include "Logger.h"
+#include "src/utils/Logger.h"
 #include <esp_wifi.h>  // For esp_wifi_get_mac and esp_err_to_name
 
 Mesh *Mesh::instance = nullptr;
@@ -29,7 +29,7 @@ void Mesh::printMeshMessage(const mesh_message &msg) {
 #endif
 }
 
-void Mesh::onDataSentCallback(const uint8_t *mac_addr, esp_now_send_status_t status) {
+void Mesh::onDataSentCallback(const wifi_tx_info_t *mac_addr, esp_now_send_status_t status) {
 #ifdef DEBUG
   String statusStr = (status == ESP_NOW_SEND_SUCCESS) ? "Delivery Success" : "Delivery Fail";
   Logger::logln("MESH", "Last Packet Send Status: " + statusStr);
