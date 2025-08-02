@@ -3,6 +3,7 @@
 #include "src/Adapter/AdapterFactory.h"
 #include "src/utils/Logger.h"
 #include "src/hardware/Led.h"
+#include "src/utils/ErrorHandler.h"
 
 using namespace planetopia::utils;
 using namespace planetopia::mesh;
@@ -32,15 +33,49 @@ void setup() {
   Serial.begin(115200);
   Logger::logln("MAIN", "Logger initialized");
 
-  greenLed.init();
-  redLed.init();
+  Led::setSystemErrorLed(&redLed);
+
+  // Try to initialize red LED. If it fails, fallback to Serial log and green LED.
+  if (!redLed.init()) {
+    Logger::logln("MAIN", "FATAL: Failed to initialize red LED!");
+    // Try to use green LED if possible
+    if (greenLed.init()) {
+      while (true) {
+        greenLed.blink(6, 100, 100); // 6 quick blinks: fatal hardware error
+        delay(1000);
+      }
+    } else {
+      Logger::logln("MAIN", "FATAL: No LEDs available. System halted.");
+      while (true) {
+        delay(1000);
+      }
+    }
+  }
+
+  ErrorHandler::getInstance().init(&redLed);
+
+  if (!greenLed.isInitialized()) {
+    if (!greenLed.init()) {
+      ErrorHandler::getInstance().signalError(
+        ErrorType::HARDWARE_FAILURE,
+        "MAIN: Failed to initialize green LED"
+      );
+      while (true) {
+        delay(1000);
+      }
+    }
+  }
 
   adapter = AdapterFactory::createAdapter(PIR_ADAPTER, pirSensorPin);
   if (!adapter) {
-    Logger::logln("MAIN", "Failed to create adapter");
-    redLed.on(); // Indicate error
+    ErrorHandler::getInstance().signalError(
+      ErrorType::HARDWARE_FAILURE,
+      "MAIN: Failed to create PIR adapter"
+    );
+    // Signal persistent error via red LED using ErrorHandler
     while (true) {
-      delay(1000);
+      redLed.blink(3, 150, 150);
+      delay(800);
     }
   }
   Logger::logln("MAIN", "Adapter created");

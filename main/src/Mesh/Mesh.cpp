@@ -1,7 +1,8 @@
 #define DEBUG
 #include "Mesh.h"
 #include "src/utils/Logger.h"
-#include <esp_wifi.h>  // For esp_wifi_get_mac and esp_err_to_name
+#include "src/utils/ErrorHandler.h"
+#include <esp_wifi.h>
 
 namespace planetopia {
 namespace mesh {
@@ -43,7 +44,9 @@ void Mesh::onDataSentCallback(const wifi_tx_info_t *mac_addr, esp_now_send_statu
 
 void Mesh::onDataRecvCallback(const esp_now_recv_info *mac, const uint8_t *incomingData, int len) {
   if (!incomingData || len < sizeof(mesh_message)) {
-    Logger::logln("MESH", "Invalid incoming data or length");
+    ErrorHandler::getInstance().signalError(
+      ErrorType::COMMUNICATION_FAIL,
+      "MESH: Invalid incoming data or length");
     return;
   }
 
@@ -67,7 +70,9 @@ void Mesh::dataRecvTrampoline(const esp_now_recv_info *mac_addr, const uint8_t *
 void Mesh::readMacAddress() {
   esp_err_t ret = esp_wifi_get_mac(WIFI_IF_STA, deviceMacAddress);
   if (ret != ESP_OK) {
-    Logger::logln("MESH", "Failed to read MAC address: " + String(esp_err_to_name(ret)));
+    ErrorHandler::getInstance().signalError(
+      ErrorType::HARDWARE_FAILURE,
+      ("MESH: Failed to read MAC address: " + String(esp_err_to_name(ret))).c_str());
   } else {
     Logger::log("MESH", "Device MAC: ");
     printMac(deviceMacAddress);
@@ -94,7 +99,9 @@ void Mesh::init() {
 
   esp_err_t espNowInit = esp_now_init();
   if (espNowInit != ESP_OK) {
-    Logger::logln("MESH", "Error initializing ESP-NOW: " + String(esp_err_to_name(espNowInit)));
+    ErrorHandler::getInstance().signalError(
+      ErrorType::COMMUNICATION_FAIL,
+      ("MESH: Error initializing ESP-NOW: " + String(esp_err_to_name(espNowInit))).c_str());
     return;
   }
   Logger::logln("MESH", "ESP-NOW initialized successfully");
@@ -109,7 +116,9 @@ void Mesh::init() {
   if (!esp_now_is_peer_exist(broadcastAddress)) {
     esp_err_t status = esp_now_add_peer(&peerInfo);
     if (status != ESP_OK) {
-      Logger::logln("MESH", "Peer add failed: " + String(esp_err_to_name(status)));
+      ErrorHandler::getInstance().signalError(
+        ErrorType::COMMUNICATION_FAIL,
+        ("MESH: Peer add failed: " + String(esp_err_to_name(status))).c_str());
     } else {
       Logger::logln("MESH", "Peer added successfully");
     }
@@ -135,7 +144,9 @@ void Mesh::transmitCore(const adapter_types type, const uint8_t data[12]) {
   if (result == ESP_OK) {
     Logger::logln("MESH", "Sent with success");
   } else {
-    Logger::logln("MESH", "Error sending the data: " + String(esp_err_to_name(result)));
+    ErrorHandler::getInstance().signalError(
+      ErrorType::COMMUNICATION_FAIL,
+      ("MESH: Error sending the data: " + String(esp_err_to_name(result))).c_str());
   }
 }
 

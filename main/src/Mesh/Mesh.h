@@ -50,4 +50,4 @@ public:
 }
 }
 
-#endif // MESH_H
+#endif  // MESH_H

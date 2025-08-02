@@ -1,5 +1,6 @@
 #include "Adapter.h"
 #include "src/utils/Logger.h"
+#include "src/utils/ErrorHandler.h"
 
 namespace planetopia {
 namespace adapter {
@@ -20,7 +21,9 @@ void Adapter::sendDataThroughMesh(const adapter_types type, const uint8_t data[1
     mesh_transmit_fn(type, data);
     Logger::logln("Adapter", "Data sent through mesh");
   } else {
-    Logger::logln("Adapter", "ERROR: transmit function not set");
+    ErrorHandler::getInstance().signalError(
+      ErrorType::CONFIG_ERROR,
+      "Adapter: Transmit function not set");
   }
 }
 

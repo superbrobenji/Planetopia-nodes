@@ -1,5 +1,6 @@
 #include "AdapterFactory.h"
 #include "src/utils/Logger.h"
+#include "src/utils/ErrorHandler.h"
 
 namespace planetopia {
 namespace adapter {
@@ -21,7 +22,9 @@ Adapter* AdapterFactory::createAdapter(adapter_types type, int pin) {
       //   return new LED_Adapter(pin);
 
     default:
-      Logger::logln("Factory", "Error: Unknown adapter type");
+      ErrorHandler::getInstance().signalError(
+        ErrorType::CONFIG_ERROR,
+        "AdapterFactory: Unknown adapter type");
       return nullptr;
   }
 }

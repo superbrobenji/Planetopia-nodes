@@ -20,5 +20,16 @@ void Logger::logln(const String& tag, const String& message) {
 #endif
 }
 
+void Logger::error(const char* fmt, ...) {
+#ifdef DEBUG
+  va_list args;
+  va_start(args, fmt);
+  Serial.print("[ERROR] ");
+  Serial.vprintf(fmt, args);
+  Serial.println();
+  va_end(args);
+#endif
+}
+
 }
 }

@@ -1,5 +1,6 @@
 #include "PIR_Adapter.h"
 #include "src/utils/Logger.h"
+#include "src/utils/ErrorHandler.h"
 
 namespace planetopia {
 namespace adapter {
@@ -28,18 +29,27 @@ void PIR_Adapter::init() {
   }
 
   if (_pin < 0 || _pin > 39) {
-    Logger::logln("PIR_Adapter", "Error: Invalid pin number.");
+    ErrorHandler::getInstance().signalError(
+      ErrorType::CONFIG_ERROR,
+      "PIR_Adapter: Invalid pin number."
+    );
     return;
   }
 
   int irq = digitalPinToInterrupt(_pin);
   if (irq == NOT_AN_INTERRUPT) {
-    Logger::logln("PIR_Adapter", "Error: Selected pin does not support interrupts.");
+    ErrorHandler::getInstance().signalError(
+      ErrorType::CONFIG_ERROR,
+      "PIR_Adapter: Selected pin does not support interrupts."
+    );
     return;
   }
 
   instance = this;
   pinMode(_pin, INPUT_PULLUP);
+
+  // Attaching the interrupt is hardware-related, so if it fails, call it HARDWARE_FAILURE.
+  // attachInterrupt does not return an error, but if you had logic to check for success, use HARDWARE_FAILURE here.
   attachInterrupt(irq, PIR_Adapter::detectMotionTrampoline, RISING);
 
   _interruptEnabled = true;
@@ -88,7 +98,16 @@ void PIR_Adapter::loop() {
     _timerActive = false;
     _motionSent = false;
 
-    attachInterrupt(digitalPinToInterrupt(_pin), PIR_Adapter::detectMotionTrampoline, RISING);
+    int irq = digitalPinToInterrupt(_pin);
+    if (irq == NOT_AN_INTERRUPT) {
+      // This is a hardware failure if a pin that previously worked now doesn't.
+      ErrorHandler::getInstance().signalError(
+        ErrorType::HARDWARE_FAILURE,
+        "PIR_Adapter: Could not re-attach interrupt (possible hardware error)"
+      );
+      return;
+    }
+    attachInterrupt(irq, PIR_Adapter::detectMotionTrampoline, RISING);
     _interruptEnabled = true;
   }
 }
