@@ -10,7 +10,8 @@ namespace mesh {
 using namespace planetopia::utils;
 
 Mesh *Mesh::instance = nullptr;
-uint8_t Mesh::broadcastAddress[] = { 0xEC, 0x64, 0xC9, 0x5D, 0xAC, 0x18 };
+uint8_t Mesh::broadcastAddress[] = { 0xEC, 0x64, 0xC9, 0x5D, 0x22, 0x20 };
+constexpr uint8_t Mesh::broadcastMac[6];
 
 Mesh::Mesh() {}
 
@@ -24,7 +25,8 @@ void Mesh::printMeshMessage(const mesh_message &msg) {
   }
   Logger::logln("MESH", "MAC: " + macStr, LogLevel::LOG_DEBUG);
 
-  Logger::logln("MESH", "Data Type: " + String(msg.dataType), LogLevel::LOG_DEBUG);
+  Logger::logln("MESH", "MessageType: " + String(msg.messageType), LogLevel::LOG_DEBUG);
+  Logger::logln("MESH", "DataType: " + String(msg.dataType), LogLevel::LOG_DEBUG);
 
   String dataStr;
   for (int i = 0; i < 12; i++) {
@@ -56,6 +58,26 @@ void Mesh::onDataRecvCallback(const esp_now_recv_info *mac, const uint8_t *incom
   Logger::logln("MESH", "Bytes received:", LogLevel::LOG_DEBUG);
   printMeshMessage(dataToReceive);
 
+  // --- Use messageType to separate mesh protocol from adapter messages ---
+  if (dataToReceive.messageType == MESH_TYPE_MASTER_BEACON) {
+    // Master beacon logic:
+    memcpy(currentMaster.mac, dataToReceive.originMacAddress, 6);
+    currentMaster.distance = 1;  // direct neighbor
+    memcpy(currentMaster.nextHop, dataToReceive.originMacAddress, 6);
+
+    Logger::logln("MESH", "Master discovered: " +
+      String(dataToReceive.originMacAddress[0], HEX) + ":" +
+      String(dataToReceive.originMacAddress[1], HEX) + ":" +
+      String(dataToReceive.originMacAddress[2], HEX) + ":" +
+      String(dataToReceive.originMacAddress[3], HEX) + ":" +
+      String(dataToReceive.originMacAddress[4], HEX) + ":" +
+      String(dataToReceive.originMacAddress[5], HEX),
+      LogLevel::LOG_INFO);
+
+    return;  // do not forward master beacons
+  }
+
+  // Adapter data messages:
   if (externalRecvCallback) {
     externalRecvCallback(dataToReceive);
   }
@@ -129,20 +151,32 @@ bool Mesh::init() {
   return true;
 }
 
+// --- Adapter data transmit (default) ---
 void Mesh::transmit(const adapter_types type, const uint8_t data[12]) {
   if (instance) {
-    instance->transmitCore(type, data);
+    instance->transmitCore(type, data, broadcastAddress);
   }
 }
 
-void Mesh::transmitCore(const adapter_types type, const uint8_t data[12]) {
-  mesh_message msg;
-  memcpy(msg.originMacAddress, deviceMacAddress, sizeof(deviceMacAddress));
+// Overload for targeted transmit
+void Mesh::transmit(const adapter_types type, const uint8_t data[12], const uint8_t targetMac[6]) {
+  if (instance) {
+    instance->transmitCore(type, data, targetMac);
+  }
+}
+
+void Mesh::transmitCore(const adapter_types type, const uint8_t data[12], const uint8_t targetMac[6]) {
+  mesh_message msg = {};
+  msg.messageType = MESH_TYPE_ADAPTER_DATA;
   msg.dataType = type;
-  memcpy(msg.data, data, sizeof(data));
+  memcpy(msg.originMacAddress, deviceMacAddress, 6);
+  memcpy(msg.targetMacAddress, targetMac, 6);
+  memcpy(msg.lastHopMacAddress, deviceMacAddress, 6);
+  memcpy(msg.data, data, sizeof(msg.data));
+  msg.hopCount = 0;
   printMeshMessage(msg);
 
-  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *)&msg, sizeof(msg));
+  esp_err_t result = esp_now_send(targetMac, (uint8_t *)&msg, sizeof(msg));
   if (result == ESP_OK) {
     Logger::logln("MESH", "Sent with success", LogLevel::LOG_DEBUG);
   } else {
@@ -154,6 +188,19 @@ void Mesh::transmitCore(const adapter_types type, const uint8_t data[12]) {
 
 void Mesh::linkDataRecvCallback(std::function<void(mesh_message)> recvCallback) {
   externalRecvCallback = recvCallback;
+}
+
+// --- Periodically called in main loop if this node is master ---
+void Mesh::broadcastMasterBeacon() {
+  mesh_message beacon = {};
+  beacon.messageType = MESH_TYPE_MASTER_BEACON;
+  beacon.dataType = planetopia::adapter::UNKNOWN_ADAPTER; // Or a value that means "unused"
+  memcpy(beacon.originMacAddress, deviceMacAddress, 6);
+  memcpy(beacon.targetMacAddress, broadcastMac, 6);
+  memcpy(beacon.lastHopMacAddress, deviceMacAddress, 6);
+  beacon.data[0] = 1;  // protocolVersion (optional)
+  beacon.hopCount = 0;
+  esp_now_send(broadcastMac, (uint8_t *)&beacon, sizeof(beacon));
 }
 
 }

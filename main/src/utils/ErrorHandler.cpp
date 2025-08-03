@@ -67,7 +67,7 @@ void ErrorHandler::blinkPattern(ErrorType errorType) {
 
 bool ErrorHandler::shouldRestart(ErrorType errorType) const {
   switch (errorType) {
-    case ErrorType::COMMUNICATION_FAIL:
+
     case ErrorType::MEMORY_ERROR:
     case ErrorType::HARDWARE_FAILURE:
       return true;
