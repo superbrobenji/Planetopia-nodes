@@ -34,10 +34,11 @@ void Adapter::setTransmitFn(TransmitPtr fn) {
   Logger::logln("Adapter", "Transmit function assigned", LogLevel::LOG_DEBUG);
 }
 
-void Adapter::recvDataFromAdapter(uint8_t data[12]) {
+void Adapter::getDataFromMesh() {
   // Optional override – default does nothing
   Logger::logln("Adapter", "recvDataFromAdapter called (default, no-op)", LogLevel::LOG_DEBUG);
 }
+
 
 bool Adapter::init() {
   // Base class: nothing to init

@@ -184,7 +184,7 @@ void setup() {
 
     adapter->setTransmitFn(mesh.transmit);
 
-    mesh.linkDataRecvCallback(dataRecvCallback);
+    mesh.linkDataRecvCallback(adapter->getDataFromMeshCallback);
     greenLed.blink(2, 200, 200);
     redLed.blink(2, 200, 200);
 }
