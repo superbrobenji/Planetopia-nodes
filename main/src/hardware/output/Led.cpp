@@ -94,7 +94,7 @@ bool Led::setState(bool state) {
   digitalWrite(_pin, state ? HIGH : LOW);
   _isOn = state;
   Logger::logln("Led", String("LED on pin ") + String(_pin) + (state ? " ON" : " OFF"), LogLevel::LOG_DEBUG);
-  return true; 
+  return true;
 }
 
 void Led::setSystemErrorLed(Led* led) {

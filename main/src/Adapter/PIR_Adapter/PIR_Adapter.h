@@ -12,6 +12,7 @@ public:
   explicit PIR_Adapter(int pin);
   bool init() override;
   void loop() override;
+  void onMeshDataImpl(const planetopia::mesh::mesh_message& message) override;
 
   // Trampoline for interrupt (must be static):
   static void detectMotionTrampoline();

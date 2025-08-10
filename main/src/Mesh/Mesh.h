@@ -129,6 +129,12 @@ public:
   const std::vector<PeerInfo>& getPeerList() const {
     return peerMacs;
   }
+
+  // Broadcast adapter data to all peers
+  void broadcastAdapterData(adapter_types type, const uint8_t data[12]);
+
+  // Serial adapter helper (optional broadcast)
+  static void broadcastAdapterDataStatic(adapter_types type, const uint8_t data[12]);
 };
 
 }

@@ -3,6 +3,13 @@
 
 #include <Arduino.h>
 
+// Forward declaration to avoid circular include with Mesh
+namespace planetopia {
+namespace mesh {
+struct mesh_message;
+}
+}
+
 namespace planetopia {
 namespace adapter {
 
@@ -11,7 +18,8 @@ enum adapter_types {
   UNKNOWN_ADAPTER = -1,
   PIR_ADAPTER,
   WIFI_ADAPTER,
-  LED_ADAPTER
+  LED_ADAPTER,
+  SERIAL_ADAPTER
 };
 
 // Abstract base class for all adapters
@@ -31,9 +39,14 @@ public:
   void sendDataThroughMesh(const adapter_types type, const uint8_t data[12]);  // sends data through mesh
   void setTransmitFn(TransmitPtr fn);
 
-  virtual bool init() = 0;                             // To be implemented by derived classes
-  virtual void loop() = 0;                             // Called repeatedly in the main loop
-  virtual static void getDataFromMeshCallback();  // Optional override
+  virtual bool init() = 0;  // To be implemented by derived classes
+  virtual void loop() = 0;  // Called repeatedly in the main loop
+  // Called when mesh data is received; filters by adapter type before dispatch
+  void onMeshData(const planetopia::mesh::mesh_message& message);
+
+protected:
+  // Implement in subclasses: only called when message.dataType == this adapter's type
+  virtual void onMeshDataImpl(const planetopia::mesh::mesh_message& message);
 };
 
 }

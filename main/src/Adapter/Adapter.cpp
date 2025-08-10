@@ -1,4 +1,5 @@
 #include "Adapter.h"
+#include "src/Mesh/Mesh.h"  // for full definition of mesh_message
 #include "src/utils/Logger.h"
 #include "src/utils/ErrorHandler.h"
 
@@ -23,8 +24,7 @@ void Adapter::sendDataThroughMesh(const adapter_types type, const uint8_t data[1
   } else {
     ErrorHandler::getInstance().signalError(
       ErrorType::CONFIG_ERROR,
-      "Adapter: Transmit function not set"
-    );
+      "Adapter: Transmit function not set");
     Logger::logln("Adapter", "ERROR: transmit function not set", LogLevel::LOG_ERROR);
   }
 }
@@ -34,14 +34,17 @@ void Adapter::setTransmitFn(TransmitPtr fn) {
   Logger::logln("Adapter", "Transmit function assigned", LogLevel::LOG_DEBUG);
 }
 
-void Adapter::getDataFromMesh() {
-  // Optional override – default does nothing
-  Logger::logln("Adapter", "recvDataFromAdapter called (default, no-op)", LogLevel::LOG_DEBUG);
+void Adapter::onMeshData(const planetopia::mesh::mesh_message& message) {
+  if (message.dataType != _adapterType) return;
+  onMeshDataImpl(message);
+}
+
+void Adapter::onMeshDataImpl(const planetopia::mesh::mesh_message& /*message*/) {
+  // Default no-op in base; subclasses optionally override
 }
 
 
 bool Adapter::init() {
-  // Base class: nothing to init
   return true;
 }
 

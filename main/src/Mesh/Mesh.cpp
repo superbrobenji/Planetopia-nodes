@@ -384,6 +384,10 @@ void Mesh::transmitCore(const adapter_types type, const uint8_t data[12], MeshMe
 }
 
 void Mesh::transmit(const adapter_types type, const uint8_t data[12]) {
+  if (instance->isMaster) {
+    instance->broadcastAdapterData(type, data);
+    return;
+  }
   instance->transmitCore(type, data, MESH_TYPE_ADAPTER_DATA, nullptr);
 }
 
@@ -455,6 +459,18 @@ bool Mesh::meshKeyIsSet() const {
   for (int i = 0; i < MESH_KEY_SIZE; ++i)
     if (meshKey[i] != 0xFF) return true;
   return false;
+}
+
+void Mesh::broadcastAdapterData(adapter_types type, const uint8_t data[12]) {
+  mesh_message msg = buildMessage(type, data, MESH_TYPE_ADAPTER_DATA);
+  // Broadcast: set target to FF:FF:... and hopCount=0
+  memset(msg.targetMacAddress, 0xFF, 6);
+  msg.hopCount = 0;
+  broadcastToAllPeers(msg);
+}
+
+void Mesh::broadcastAdapterDataStatic(adapter_types type, const uint8_t data[12]) {
+  if (instance) instance->broadcastAdapterData(type, data);
 }
 
 }
