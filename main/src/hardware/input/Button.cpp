@@ -1,5 +1,6 @@
 #include "Button.h"
 #include <Arduino.h>
+#include <cstdint>
 
 namespace planetopia {
 namespace hardware {
@@ -12,11 +13,11 @@ bool Button::isPressed() {
   return digitalRead(_pin) == LOW;
 }
 
-bool Button::waitForHold(unsigned long ms) {
-  unsigned long start = millis();
+bool Button::waitForHold(uint32_t ms) {
+  uint32_t start = millis();
   if (!isPressed()) return false;
   while (isPressed()) {
-    if (millis() - start >= ms) return true;
+    if (static_cast<uint32_t>(millis() - start) >= ms) return true;
     delay(10);  // debounce, yield to RTOS
   }
   return false;

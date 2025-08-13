@@ -1,6 +1,6 @@
 #include "AdapterFactory.h"
 #include "src/core/Logger.h"
-#include "src/core/ErrorHandler.h"
+#include "src/error/Error.h"
 #include "src/persistence/EEPROM_Manager.h"
 // Include all adapter headers
 #include "src/Adapter/PIR_Adapter/PIR_Adapter.h"
@@ -29,18 +29,9 @@ Adapter* AdapterFactory::createAdapter(adapter_types type, int pin) {
       Logger::logln("Factory", "Creating Serial_Adapter", LogLevel::LOG_INFO);
       return new Serial_Adapter(pin);
 
-      // case WIFI_ADAPTER:
-      //   Logger::logln("Factory", "Creating WiFi_Adapter", LogLevel::LOG_INFO);
-      //   return new WiFi_Adapter(pin);
-
-      // case LED_ADAPTER:
-      //   Logger::logln("Factory", "Creating LED_Adapter", LogLevel::LOG_INFO);
-      //   return new LED_Adapter(pin);
-
     default:
-      ErrorHandler::getInstance().signalError(
-        ErrorType::CONFIG_ERROR,
-        "AdapterFactory: Unknown adapter type");
+      planetopia::err::fail(planetopia::utils::ErrorType::CONFIG_ERROR,
+                            "AdapterFactory: Unknown adapter type");
       Logger::logln("Factory", "Error: Unknown adapter type", LogLevel::LOG_ERROR);
       return nullptr;
   }

@@ -1,6 +1,6 @@
 #include "Led.h"
 #include "src/core/Logger.h"
-#include "src/core/ErrorHandler.h"
+#include "src/error/Error.h"
 
 namespace planetopia {
 namespace hardware {
@@ -27,9 +27,8 @@ bool Led::init() {
   // Use GpioOutput::init() for validation and pinMode
   if (!GpioOutput::init()) {
     if (this != _systemErrorLed) {
-      ErrorHandler::getInstance().signalError(
-        ErrorType::CONFIG_ERROR,
-        "Led: Invalid pin number");
+      planetopia::err::fail(planetopia::utils::ErrorType::CONFIG_ERROR,
+                            "Led: Invalid pin number");
     }
     Logger::logln("Led", "ERROR: Invalid pin number for LED: " + String(_pin), LogLevel::LOG_ERROR);
     return false;
@@ -43,9 +42,8 @@ bool Led::init() {
 bool Led::on() {
   if (!_initialized) {
     if (this != _systemErrorLed) {
-      ErrorHandler::getInstance().signalError(
-        ErrorType::HARDWARE_FAILURE,
-        "Led: on() called before initialization");
+      planetopia::err::fail(planetopia::utils::ErrorType::HARDWARE_FAILURE,
+                            "Led: on() called before initialization");
     }
     Logger::logln("Led", "ERROR: on() called before initialization", LogLevel::LOG_ERROR);
     return false;
@@ -56,9 +54,8 @@ bool Led::on() {
 bool Led::off() {
   if (!_initialized) {
     if (this != _systemErrorLed) {
-      ErrorHandler::getInstance().signalError(
-        ErrorType::HARDWARE_FAILURE,
-        "Led: off() called before initialization");
+      planetopia::err::fail(planetopia::utils::ErrorType::HARDWARE_FAILURE,
+                            "Led: off() called before initialization");
     }
     Logger::logln("Led", "ERROR: off() called before initialization", LogLevel::LOG_ERROR);
     return false;
@@ -69,9 +66,8 @@ bool Led::off() {
 bool Led::toggle() {
   if (!_initialized) {
     if (this != _systemErrorLed) {
-      ErrorHandler::getInstance().signalError(
-        ErrorType::HARDWARE_FAILURE,
-        "Led: toggle() called before initialization");
+      planetopia::err::fail(planetopia::utils::ErrorType::HARDWARE_FAILURE,
+                            "Led: toggle() called before initialization");
     }
     Logger::logln("Led", "ERROR: toggle() called before initialization", LogLevel::LOG_ERROR);
     return false;
@@ -104,9 +100,8 @@ void Led::setSystemErrorLed(Led* led) {
 bool Led::blink(uint8_t times, unsigned int onTimeMs, unsigned int offTimeMs) {
   if (!_initialized) {
     if (this != _systemErrorLed) {
-      ErrorHandler::getInstance().signalError(
-        ErrorType::HARDWARE_FAILURE,
-        "Led: blink() called before initialization");
+      planetopia::err::fail(planetopia::utils::ErrorType::HARDWARE_FAILURE,
+                            "Led: blink() called before initialization");
     }
     Logger::logln("Led", "ERROR: blink() called before initialization", LogLevel::LOG_ERROR);
     return false;

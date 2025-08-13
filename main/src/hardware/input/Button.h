@@ -12,7 +12,7 @@ public:
   // Returns true if the button is currently pressed (active LOW)
   bool isPressed();
   // Returns true if held for the given ms (blocking call)
-  bool waitForHold(unsigned long ms);
+  bool waitForHold(uint32_t ms);
 };
 
 }  // namespace hardware

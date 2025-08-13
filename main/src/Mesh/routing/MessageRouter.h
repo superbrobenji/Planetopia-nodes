@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <vector>
+#include <cstdint>
 #include "src/Mesh/Mesh.h"
 
 namespace planetopia {
@@ -46,13 +47,13 @@ public:
   void setMaxHops(uint8_t maxHops) {
     maxHops_ = maxHops;
   }
-  void setRoutingTimeout(unsigned long timeout) {
+  void setRoutingTimeout(uint32_t timeout) {
     routingTimeout_ = timeout;
   }
 
 private:
   uint8_t maxHops_;
-  unsigned long routingTimeout_;
+  uint32_t routingTimeout_;
 
   // Internal routing logic
   bool isValidTarget(const uint8_t* targetMac) const;

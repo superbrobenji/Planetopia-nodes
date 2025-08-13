@@ -1,5 +1,7 @@
 #include "PeerManager.h"
 #include "src/Mesh/Mesh.h"
+#include "src/network/MacAddress.h"
+#include "../../../project_config.h"  // for STALE_PEER_THRESHOLD_MS
 using planetopia::mesh::PeerInfo;
 #include <cstring>
 #include <algorithm>
@@ -8,10 +10,12 @@ namespace planetopia {
 namespace utils {
 
 PeerManager::PeerManager()
-  : staleThresholdMs_(8000), maxPeers_(EEPROM_SIZES::MAX_PEERS) {
+  : staleThresholdMs_(planetopia::config::STALE_PEER_THRESHOLD_MS), maxPeers_(EEPROM_SIZES::MAX_PEERS), lastFlushMs_(millis()) {
+  peers_.reserve(maxPeers_);  // static allocation at startup
 }
 
 bool PeerManager::addPeer(const uint8_t mac[6], bool saveToEEPROM) {
+  planetopia::err::check(mac != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR, "addPeer: mac is null");
   if (!isValidMac(mac)) {
     Logger::logln("PEER", "Invalid MAC address provided", LogLevel::LOG_ERROR);
     return false;
@@ -24,9 +28,8 @@ bool PeerManager::addPeer(const uint8_t mac[6], bool saveToEEPROM) {
 
   if (isPeerListFull()) {
     Logger::logln("PEER", "Peer list is full", LogLevel::LOG_ERROR);
-    ErrorHandler::getInstance().signalError(
-      ErrorType::MEMORY_ERROR,
-      "Peer list full! Cannot add new peer.");
+    planetopia::err::fail(planetopia::utils::ErrorType::MEMORY_ERROR,
+                          "Peer list full! Cannot add new peer.");
     return false;
   }
 
@@ -36,7 +39,10 @@ bool PeerManager::addPeer(const uint8_t mac[6], bool saveToEEPROM) {
   peers_.push_back(peer);
 
   if (saveToEEPROM) {
-    savePeersToEEPROM();
+    if (millis() - lastFlushMs_ > FLUSH_INTERVAL_MS) {
+      savePeersToEEPROM();
+      lastFlushMs_ = millis();
+    }
   }
 
   logPeerOperation("Added peer", mac, true);
@@ -44,6 +50,7 @@ bool PeerManager::addPeer(const uint8_t mac[6], bool saveToEEPROM) {
 }
 
 bool PeerManager::removePeer(const uint8_t mac[6], bool saveToEEPROM) {
+  planetopia::err::check(mac != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR, "removePeer: mac is null");
   auto it = std::find_if(peers_.begin(), peers_.end(),
                          [mac](const PeerInfo& peer) {
                            return memcmp(peer.mac, mac, 6) == 0;
@@ -53,7 +60,10 @@ bool PeerManager::removePeer(const uint8_t mac[6], bool saveToEEPROM) {
     peers_.erase(it);
 
     if (saveToEEPROM) {
-      savePeersToEEPROM();
+      if (millis() - lastFlushMs_ > FLUSH_INTERVAL_MS) {
+        savePeersToEEPROM();
+        lastFlushMs_ = millis();
+      }
     }
 
     logPeerOperation("Removed peer", mac, true);
@@ -112,8 +122,8 @@ void PeerManager::updatePeerLastSeen(const uint8_t mac[6]) {
   }
 }
 
-void PeerManager::cleanupStalePeers(unsigned long staleThresholdMs) {
-  unsigned long currentTime = millis();
+void PeerManager::cleanupStalePeers(uint32_t staleThresholdMs) {
+  uint32_t currentTime = millis();
   auto it = peers_.begin();
 
   while (it != peers_.end()) {
@@ -127,6 +137,7 @@ void PeerManager::cleanupStalePeers(unsigned long staleThresholdMs) {
 
   if (it != peers_.end()) {
     savePeersToEEPROM();
+    lastFlushMs_ = millis();
   }
 }
 
@@ -188,27 +199,14 @@ bool PeerManager::addPeerToESPNow(const uint8_t mac[6], const uint8_t* encryptio
   info.channel = 0;
   info.encrypt = true;
   memcpy(info.lmk, encryptionKey, 16);
-
-  esp_err_t result = esp_now_add_peer(&info);
-  if (result != ESP_OK) {
-    Logger::logln("PEER", "Failed to add ESP-NOW peer: " + String(esp_err_to_name(result)), LogLevel::LOG_ERROR);
-    ErrorHandler::getInstance().signalError(
-      ErrorType::COMMUNICATION_FAIL,
-      ("Failed to add ESP-NOW peer: " + String(esp_err_to_name(result))).c_str());
-    return false;
-  }
-
+  planetopia::err::checkEsp(esp_now_add_peer(&info), planetopia::utils::ErrorType::COMMUNICATION_FAIL, "addPeerToESPNow failed");
   Logger::logln("PEER", "Added ESP-NOW peer successfully", LogLevel::LOG_DEBUG);
   return true;
 }
 
 bool PeerManager::removePeerFromESPNow(const uint8_t mac[6]) {
   esp_err_t result = esp_now_del_peer(mac);
-  if (result != ESP_OK) {
-    Logger::logln("PEER", "Failed to remove ESP-NOW peer: " + String(esp_err_to_name(result)), LogLevel::LOG_ERROR);
-    return false;
-  }
-
+  planetopia::err::checkEsp(result, planetopia::utils::ErrorType::COMMUNICATION_FAIL, "removePeerFromESPNow failed");
   Logger::logln("PEER", "Removed ESP-NOW peer successfully", LogLevel::LOG_DEBUG);
   return true;
 }
@@ -245,17 +243,19 @@ bool PeerManager::isValidMac(const uint8_t mac[6]) const {
 }
 
 void PeerManager::logPeerOperation(const char* operation, const uint8_t mac[6], bool success) {
-  String macStr;
-  for (int i = 0; i < 6; i++) {
-    if (mac[i] < 0x10) macStr += "0";
-    macStr += String(mac[i], HEX);
-    if (i < 5) macStr += ":";
-  }
+  String macStr = planetopia::utils::MacAddress(mac).toString();
 
   if (success) {
     Logger::logln("PEER", String(operation) + " - " + macStr, LogLevel::LOG_DEBUG);
   } else {
     Logger::logln("PEER", String(operation) + " failed - " + macStr, LogLevel::LOG_ERROR);
+  }
+}
+
+void PeerManager::periodicFlush() {
+  if (millis() - lastFlushMs_ > FLUSH_INTERVAL_MS) {
+    savePeersToEEPROM();
+    lastFlushMs_ = millis();
   }
 }
 

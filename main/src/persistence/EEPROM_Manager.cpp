@@ -1,5 +1,5 @@
 #include "EEPROM_Manager.h"
-#include "src/core/ErrorHandler.h"
+#include "src/error/Error.h"
 
 namespace planetopia {
 namespace utils {
@@ -24,21 +24,25 @@ EEPROM_Manager& EEPROM_Manager::getInstance() {
   return *instance;
 }
 
+// Tiger Style helpers
+bool EEPROM_Manager::beginEEPROM() {
+  if (EEPROM.begin(EEPROM_SIZES::TOTAL_SIZE)) return true;
+  handleInitFailure();
+  return false;
+}
+
+void EEPROM_Manager::handleInitFailure() {
+  Logger::logln("EEPROM", "Failed to initialize EEPROM", LogLevel::LOG_ERROR);
+  planetopia::err::fail(planetopia::utils::ErrorType::MEMORY_ERROR,
+                        "EEPROM_Manager: EEPROM.begin failed");
+}
+
+// --- refactored init ---
 bool EEPROM_Manager::init() {
-  if (isInitialized) {
-    return true;
-  }
-
-  if (!EEPROM.begin(EEPROM_SIZES::TOTAL_SIZE)) {
-    Logger::logln("EEPROM", "Failed to initialize EEPROM", LogLevel::LOG_ERROR);
-    ErrorHandler::getInstance().signalError(
-      ErrorType::MEMORY_ERROR,
-      "EEPROM_Manager: Failed to initialize EEPROM");
-    return false;
-  }
-
+  if (isInitialized) return true;
+  if (!beginEEPROM()) return false;
   isInitialized = true;
-  logOperation("Initialized", "EEPROM initialized successfully");
+  logOperation("Initialized", "EEPROM ready");
   return true;
 }
 
@@ -146,6 +150,7 @@ void EEPROM_Manager::saveMeshKey(const uint8_t* key, size_t keySize) {
 
 // Peer list operations
 bool EEPROM_Manager::loadPeerList(uint8_t* peerList, size_t maxPeers) {
+  planetopia::err::check(peerList != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR, "loadPeerList: peerList null");
   if (!ensureInitialized()) return false;
   if (maxPeers > EEPROM_SIZES::MAX_PEERS) {
     Logger::logln("EEPROM", "Requested peer count exceeds maximum", LogLevel::LOG_ERROR);
@@ -160,6 +165,7 @@ bool EEPROM_Manager::loadPeerList(uint8_t* peerList, size_t maxPeers) {
 }
 
 void EEPROM_Manager::savePeerList(const uint8_t* peerList, size_t numPeers) {
+  planetopia::err::check(peerList != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR, "savePeerList: peerList null");
   if (!ensureInitialized()) return;
   if (numPeers > EEPROM_SIZES::MAX_PEERS) {
     Logger::logln("EEPROM", "Peer count exceeds maximum", LogLevel::LOG_ERROR);
@@ -231,20 +237,20 @@ void EEPROM_Manager::clearAll() {
   if (!ensureInitialized()) return;
 
   for (int i = 0; i < EEPROM_SIZES::TOTAL_SIZE; ++i) {
-    EEPROM.write(i, 0xFF);
+    EEPROM.write(static_cast<uint16_t>(i), 0xFF);
   }
   EEPROM.commit();
   logOperation("All EEPROM cleared");
 }
 
-void EEPROM_Manager::clearRange(int startAddr, int endAddr) {
+void EEPROM_Manager::clearRange(uint16_t startAddr, uint16_t endAddr) {
   if (!ensureInitialized()) return;
   if (!isAddressValid(startAddr) || !isAddressValid(endAddr) || startAddr > endAddr) {
     Logger::logln("EEPROM", "Invalid address range for clear", LogLevel::LOG_ERROR);
     return;
   }
 
-  for (int i = startAddr; i <= endAddr; ++i) {
+  for (uint16_t i = startAddr; i <= endAddr; ++i) {
     EEPROM.write(i, 0xFF);
   }
   EEPROM.commit();
@@ -252,8 +258,8 @@ void EEPROM_Manager::clearRange(int startAddr, int endAddr) {
   logOperation("EEPROM range cleared", msg.c_str());
 }
 
-bool EEPROM_Manager::isAddressValid(int address) {
-  return address >= 0 && address < EEPROM_SIZES::TOTAL_SIZE;
+bool EEPROM_Manager::isAddressValid(uint16_t address) {
+  return address < EEPROM_SIZES::TOTAL_SIZE;
 }
 
 // Debug and diagnostics
@@ -261,10 +267,10 @@ void EEPROM_Manager::dumpEEPROM() {
   if (!ensureInitialized()) return;
 
   Logger::logln("EEPROM", "=== EEPROM Dump ===", LogLevel::LOG_INFO);
-  for (int i = 0; i < EEPROM_SIZES::TOTAL_SIZE; i += 16) {
+  for (uint16_t i = 0; i < EEPROM_SIZES::TOTAL_SIZE; i += 16) {
     String line = String(i, HEX) + ": ";
-    for (int j = 0; j < 16 && (i + j) < EEPROM_SIZES::TOTAL_SIZE; ++j) {
-      uint8_t val = EEPROM.read(i + j);
+    for (uint8_t j = 0; j < 16 && (i + j) < EEPROM_SIZES::TOTAL_SIZE; ++j) {
+      uint8_t val = EEPROM.read(static_cast<uint16_t>(i + j));
       if (val < 16) line += "0";
       line += String(val, HEX) + " ";
     }
@@ -272,7 +278,7 @@ void EEPROM_Manager::dumpEEPROM() {
   }
 }
 
-void EEPROM_Manager::printAddress(int address, int length) {
+void EEPROM_Manager::printAddress(uint16_t address, uint16_t length) {
   if (!ensureInitialized()) return;
   if (!isAddressValid(address) || !isAddressValid(address + length - 1)) {
     Logger::logln("EEPROM", "Invalid address range for print", LogLevel::LOG_ERROR);
@@ -280,8 +286,8 @@ void EEPROM_Manager::printAddress(int address, int length) {
   }
 
   String line = "Addr " + String(address) + ": ";
-  for (int i = 0; i < length; ++i) {
-    uint8_t val = EEPROM.read(address + i);
+  for (uint16_t i = 0; i < length; ++i) {
+    uint8_t val = EEPROM.read(static_cast<uint16_t>(address + i));
     if (val < 16) line += "0";
     line += String(val, HEX) + " ";
   }

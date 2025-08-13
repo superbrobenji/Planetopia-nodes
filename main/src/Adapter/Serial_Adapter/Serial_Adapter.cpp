@@ -1,7 +1,7 @@
 #include "Serial_Adapter.h"
 #include "src/Adapter/AdapterFactory.h"
 #include "src/core/Logger.h"
-#include "src/core/ErrorHandler.h"
+#include "src/error/Error.h"
 #include <esp_wifi.h>
 #include "src/Mesh/Mesh.h"
 #include <cstring>
@@ -11,7 +11,7 @@ namespace adapter {
 
 using namespace planetopia::utils;
 
-unsigned long Serial_Adapter::lastHealthMillis = 0;
+uint32_t Serial_Adapter::lastHealthMillis = 0;
 
 static void readOwnMac(uint8_t out[6]) {
   esp_wifi_get_mac(WIFI_IF_STA, out);
@@ -41,7 +41,7 @@ void Serial_Adapter::sendHealthReport() {
     Logger::logln("Serial_Adapter", "Health report sent via mesh", LogLevel::LOG_DEBUG);
   } else {
     Logger::logln("Serial_Adapter", "Mesh transmit function not available for health report", LogLevel::LOG_WARN);
-    ErrorHandler::getInstance().signalError(ErrorType::COMMUNICATION_FAIL, "Serial_Adapter: Mesh transmit not available");
+    planetopia::err::fail(planetopia::utils::ErrorType::COMMUNICATION_FAIL, "Serial_Adapter: Mesh transmit not available");
   }
 }
 
@@ -62,7 +62,7 @@ bool Serial_Adapter::init() {
 void Serial_Adapter::loop() {
   // periodic health
   if (millis() - lastHealthMillis > 5000) {
-    lastHealthMillis = millis();
+    lastHealthMillis = static_cast<uint32_t>(millis());
     Logger::logln("Serial_Adapter", "Sending periodic health report", LogLevel::LOG_DEBUG);
     sendHealthReport();
   }
@@ -83,7 +83,7 @@ void Serial_Adapter::loop() {
 
         if (frameLength == 0 || frameLength > MAX_PAYLOAD) {
           Logger::logln("Serial_Adapter", "Invalid frame length: " + String(frameLength) + ", resetting frame state", LogLevel::LOG_WARN);
-          ErrorHandler::getInstance().signalError(ErrorType::COMMUNICATION_FAIL, "Serial_Adapter: Invalid frame length");
+          planetopia::err::fail(planetopia::utils::ErrorType::COMMUNICATION_FAIL, "Serial_Adapter: Invalid frame length");
           // Reset on invalid length
           frameState = FrameState::AwaitingLen1;
           frameLength = 0;
@@ -98,7 +98,7 @@ void Serial_Adapter::loop() {
       case FrameState::AwaitingPayload:
         if (frameIndex >= MAX_PAYLOAD) {
           Logger::logln("Serial_Adapter", "Frame buffer overflow, resetting frame state", LogLevel::LOG_ERROR);
-          ErrorHandler::getInstance().signalError(ErrorType::COMMUNICATION_FAIL, "Serial_Adapter: Frame buffer overflow");
+          planetopia::err::fail(planetopia::utils::ErrorType::COMMUNICATION_FAIL, "Serial_Adapter: Frame buffer overflow");
           frameState = FrameState::AwaitingLen1;
           frameLength = 0;
           frameIndex = 0;
@@ -128,7 +128,7 @@ void Serial_Adapter::onMeshDataImpl(const planetopia::mesh::mesh_message& messag
 
   if (n == 0) {
     Logger::logln("Serial_Adapter", "Failed to encode mesh message for serial output", LogLevel::LOG_ERROR);
-    ErrorHandler::getInstance().signalError(ErrorType::COMMUNICATION_FAIL, "Serial_Adapter: Message encoding failed");
+    planetopia::err::fail(planetopia::utils::ErrorType::COMMUNICATION_FAIL, "Serial_Adapter: Message encoding failed");
     return;
   }
 
@@ -447,7 +447,7 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
   planetopia::mesh::mesh_message msg;
   if (!decodeMeshMessage(data, len, msg)) {
     Logger::logln("Serial_Adapter", "Failed to decode protobuf frame", LogLevel::LOG_ERROR);
-    ErrorHandler::getInstance().signalError(ErrorType::COMMUNICATION_FAIL, "Serial_Adapter: Failed to decode protobuf frame");
+    planetopia::err::fail(planetopia::utils::ErrorType::COMMUNICATION_FAIL, "Serial_Adapter: Failed to decode protobuf frame");
     return;
   }
 
@@ -463,7 +463,7 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
       Logger::logln("Serial_Adapter", "Adapter data forwarded successfully", LogLevel::LOG_DEBUG);
     } else {
       Logger::logln("Serial_Adapter", "transmit function not set", LogLevel::LOG_ERROR);
-      ErrorHandler::getInstance().signalError(ErrorType::CONFIG_ERROR, "Serial_Adapter: transmit function not set");
+      planetopia::err::fail(planetopia::utils::ErrorType::CONFIG_ERROR, "Serial_Adapter: transmit function not set");
     }
   } else if (msg.messageType == SERIAL_MSG_BROADCAST) {
     Logger::logln("Serial_Adapter", "Broadcasting adapter data to all peers", LogLevel::LOG_DEBUG);

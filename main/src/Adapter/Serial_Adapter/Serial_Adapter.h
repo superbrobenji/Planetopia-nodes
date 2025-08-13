@@ -53,7 +53,7 @@ private:
 
   // Health reporter
   static void sendHealthReport();
-  static unsigned long lastHealthMillis;
+  static uint32_t lastHealthMillis;
 };
 
 }  // namespace adapter

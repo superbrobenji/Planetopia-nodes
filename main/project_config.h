@@ -65,6 +65,17 @@ constexpr int NUM_DEFAULT_PEERS = sizeof(DEFAULT_PEERS)/6/sizeof(uint8_t);
 // =====================
 constexpr planetopia::utils::LogLevel DEFAULT_LOG_LEVEL = planetopia::utils::LogLevel::LOG_DEBUG;
 
+// =====================
+// 7. Global Limits (Tiger Style)
+// =====================
+// Maximum allowed routing hops in the mesh network
+constexpr uint8_t MAX_HOPS = 10;
+// Peer staleness threshold (ms) before being considered offline
+constexpr uint32_t STALE_PEER_THRESHOLD_MS = 8000UL;
+// Routing timeout used by MessageRouter (ms)
+constexpr uint32_t ROUTING_TIMEOUT_MS = 5000UL;
+// Future limits (message queue, buffer sizes, etc.) can be centralized here
+
 } // namespace config
 } // namespace planetopia
 

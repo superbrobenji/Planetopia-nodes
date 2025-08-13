@@ -10,21 +10,21 @@ namespace utils {
 
 // EEPROM address constants - centralized in one place
 namespace EEPROM_ADDRESSES {
-constexpr int MASTER_FLAG = 0;   // Master flag (1 byte)
-constexpr int DEV_FLAG = 1;      // Dev mode flag (1 byte)
-constexpr int MESH_KEY = 16;     // Mesh encryption key (16 bytes)
-constexpr int PEER_LIST = 32;    // Peer MAC addresses (60 bytes = 10 peers * 6 bytes)
-constexpr int ADAPTER_TYPE = 8;  // Adapter type (1 byte)
-constexpr int RESERVED = 92;     // Reserved for future use
+constexpr uint16_t MASTER_FLAG = 0;   // Master flag (1 byte)
+constexpr uint16_t DEV_FLAG = 1;      // Dev mode flag (1 byte)
+constexpr uint16_t MESH_KEY = 16;     // Mesh encryption key (16 bytes)
+constexpr uint16_t PEER_LIST = 32;    // Peer MAC addresses (60 bytes)
+constexpr uint16_t ADAPTER_TYPE = 8;  // Adapter type (1 byte)
+constexpr uint16_t RESERVED = 92;     // Reserved for future use
 }
 
 // EEPROM size constants
 namespace EEPROM_SIZES {
-constexpr int TOTAL_SIZE = 128;                            // Total EEPROM size
-constexpr int MESH_KEY_SIZE = 16;                          // Mesh key size
-constexpr int MAX_PEERS = 10;                              // Maximum number of peers
-constexpr int PEER_MAC_SIZE = 6;                           // MAC address size
-constexpr int PEER_LIST_SIZE = MAX_PEERS * PEER_MAC_SIZE;  // Total peer list size
+constexpr uint16_t TOTAL_SIZE = 128;
+constexpr uint8_t MESH_KEY_SIZE = 16;
+constexpr uint8_t MAX_PEERS = 10;
+constexpr uint8_t PEER_MAC_SIZE = 6;
+constexpr uint16_t PEER_LIST_SIZE = MAX_PEERS * PEER_MAC_SIZE;
 }
 
 class EEPROM_Manager {
@@ -39,6 +39,8 @@ private:
   // Helper methods
   bool ensureInitialized();
   void logOperation(const char* operation, const char* details = nullptr);
+  bool beginEEPROM();
+  void handleInitFailure();
 
 public:
   // Singleton pattern
@@ -73,12 +75,12 @@ public:
 
   // Utility operations
   void clearAll();
-  void clearRange(int startAddr, int endAddr);
-  bool isAddressValid(int address);
+  void clearRange(uint16_t startAddr, uint16_t endAddr);
+  bool isAddressValid(uint16_t address);
 
   // Debug and diagnostics
   void dumpEEPROM();
-  void printAddress(int address, int length);
+  void printAddress(uint16_t address, uint16_t length);
 
   // Destructor
   ~EEPROM_Manager();

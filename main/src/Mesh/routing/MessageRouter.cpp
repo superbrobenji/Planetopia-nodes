@@ -2,6 +2,8 @@
 #include "src/core/Logger.h"
 #include <cstring>
 #include "src/Mesh/Mesh.h"
+#include "../../../project_config.h"  // Added for MAX_HOPS limit
+#include "src/error/Error.h"
 using planetopia::mesh::PeerInfo;
 using planetopia::mesh::MasterInfo;
 
@@ -9,7 +11,7 @@ namespace planetopia {
 namespace utils {
 
 MessageRouter::MessageRouter()
-  : maxHops_(10), routingTimeout_(5000) {
+  : maxHops_(planetopia::config::MAX_HOPS), routingTimeout_(planetopia::config::ROUTING_TIMEOUT_MS) {
 }
 
 MessageRouter::RoutingResult MessageRouter::routeMessage(
@@ -17,6 +19,7 @@ MessageRouter::RoutingResult MessageRouter::routeMessage(
   const std::vector<PeerInfo>& peers,
   const MasterInfo& masterInfo,
   const uint8_t* ownMac) {
+  planetopia::err::check(ownMac != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR, "routeMessage: ownMac is null");
 
   RoutingResult result = {};
 

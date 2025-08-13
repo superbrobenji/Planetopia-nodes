@@ -3,10 +3,11 @@
 
 #include <vector>
 #include <esp_now.h>
+#include <cstdint>
 #include "src/Mesh/Mesh.h"
 #include "src/persistence/EEPROM_Manager.h"
 #include "src/core/Logger.h"
-#include "src/core/ErrorHandler.h"
+#include "src/error/Error.h"
 
 using planetopia::mesh::PeerInfo;
 using planetopia::mesh::MasterInfo;
@@ -44,7 +45,7 @@ public:
   // Peer discovery and monitoring
   DiscoveryResult discoverPeer(const uint8_t mac[6]);
   void updatePeerLastSeen(const uint8_t mac[6]);
-  void cleanupStalePeers(unsigned long staleThresholdMs = 8000);
+  void cleanupStalePeers(uint32_t staleThresholdMs = 8000);
 
   // EEPROM operations
   bool loadPeersFromEEPROM();
@@ -70,17 +71,23 @@ public:
   }
 
   // Configuration
-  void setStaleThreshold(unsigned long threshold) {
+  void setStaleThreshold(uint32_t threshold) {
     staleThresholdMs_ = threshold;
   }
   void setMaxPeers(size_t maxPeers) {
     maxPeers_ = maxPeers;
   }
 
+  // Flush any pending peer-list changes to EEPROM if FLUSH_INTERVAL elapsed
+  void periodicFlush();
+
+  static constexpr uint32_t FLUSH_INTERVAL_MS = 10000; // 10-s batch interval
+
 private:
   std::vector<PeerInfo> peers_;
-  unsigned long staleThresholdMs_;
+  uint32_t staleThresholdMs_;
   size_t maxPeers_;
+  uint32_t lastFlushMs_;
 
   // Internal helper methods
   PeerInfo* findPeer(const uint8_t mac[6]);

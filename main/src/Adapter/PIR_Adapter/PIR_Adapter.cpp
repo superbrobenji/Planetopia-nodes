@@ -1,6 +1,7 @@
 #include "PIR_Adapter.h"
+#include <cstdint>
 #include "src/core/Logger.h"
-#include "src/core/ErrorHandler.h"
+#include "src/error/Error.h"
 #include "src/Mesh/Mesh.h"
 
 namespace planetopia {
@@ -29,9 +30,8 @@ bool PIR_Adapter::init() {
   }
 
   if (!_pir.init()) {
-    ErrorHandler::getInstance().signalError(
-      ErrorType::CONFIG_ERROR,
-      "PIR_Adapter: PIR hardware failed to initialize.");
+    planetopia::err::fail(planetopia::utils::ErrorType::CONFIG_ERROR,
+                          "PIR_Adapter: PIR hardware failed to initialize.");
     return false;
   }
 
@@ -63,7 +63,7 @@ void PIR_Adapter::detectMotion() {
 void PIR_Adapter::loop() {
   if (!_initialized) return;
 
-  unsigned long now = millis();
+  uint32_t now = millis();
 
   if (_pir.isMotionDetected()) {
     _lastTrigger = now;
@@ -79,15 +79,14 @@ void PIR_Adapter::loop() {
     PIR_Adapter::sendDataTrampoline(_adapterType, data);
   }
 
-  if (_timerActive && (now - _lastTrigger > (_cooldownSeconds * 1000))) {
+  if (_timerActive && (now - _lastTrigger > (_cooldownSeconds * 1000U))) {
     Logger::logln("PIR_Adapter", "Cooldown ended. Re-arming sensor.", LogLevel::LOG_DEBUG);
     _timerActive = false;
     _motionSent = false;
 
     if (!_pir.attachInterrupt(PIR_Adapter::detectMotionTrampoline, RISING)) {
-      ErrorHandler::getInstance().signalError(
-        ErrorType::HARDWARE_FAILURE,
-        "PIR_Adapter: Could not re-attach interrupt (possible hardware error)");
+      planetopia::err::fail(planetopia::utils::ErrorType::HARDWARE_FAILURE,
+                            "PIR_Adapter: Could not re-attach interrupt (possible hardware error)");
       return;
     }
     _interruptEnabled = true;

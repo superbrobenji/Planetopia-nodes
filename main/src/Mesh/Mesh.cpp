@@ -1,7 +1,9 @@
 #include "Mesh.h"
+#include "src/network/MacAddress.h"
 #include "src/core/Logger.h"
-#include "src/core/ErrorHandler.h"
+#include "src/error/Error.h"  // unified error
 #include "src/persistence/EEPROM_Manager.h"
+// Error.h already provides ERROR_CHECK macros
 #include <esp_now.h>
 #include <WiFi.h>
 #include <cstring>
@@ -14,10 +16,7 @@ using namespace planetopia::utils;
 
 Mesh* Mesh::instance = nullptr;
 
-// --- Helper: MAC equality ---
-static bool macEquals(const uint8_t* a, const uint8_t* b) {
-  return std::memcmp(a, b, 6) == 0;
-}
+// no longer need macEquals helper – use MacAddress equality directly
 
 static void registerPeerWithEspNow(const uint8_t mac[6], const uint8_t* lmk) {
   if (esp_now_is_peer_exist(mac)) return;
@@ -26,7 +25,7 @@ static void registerPeerWithEspNow(const uint8_t mac[6], const uint8_t* lmk) {
   info.channel = 0;
   info.encrypt = true;
   memcpy(info.lmk, lmk, 16);
-  esp_now_add_peer(&info);
+  planetopia::err::checkEsp(esp_now_add_peer(&info), planetopia::utils::ErrorType::COMMUNICATION_FAIL, "registerPeerWithEspNow: add_peer failed");
 }
 
 Mesh::Mesh()
@@ -38,40 +37,22 @@ Mesh::Mesh()
   memset(lastSeenMasterMac, 0, 6);
   memset(deviceMacAddress, 0, 6);
   peerMacs.clear();
+  peerMacs.reserve(MAX_PEERS);  // pre-allocate to avoid runtime realloc
 }
 
 void Mesh::readMacAddress() {
   esp_err_t ret = esp_wifi_get_mac(WIFI_IF_STA, deviceMacAddress);
   if (ret != ESP_OK) {
-    ErrorHandler::getInstance().signalError(
-      ErrorType::HARDWARE_FAILURE,
-      ("MESH: Failed to read MAC address: " + String(esp_err_to_name(ret))).c_str());
+    planetopia::err::fail(planetopia::utils::ErrorType::HARDWARE_FAILURE,
+                          (String("MESH: Failed to read MAC address: ") + esp_err_to_name(ret)).c_str());
   } else {
     Logger::log("MESH", "Device MAC: ", LogLevel::LOG_DEBUG);
-    printMac(deviceMacAddress);
+    Logger::logln("MESH", planetopia::utils::MacAddress(deviceMacAddress).toString(), LogLevel::LOG_DEBUG);
   }
-}
-
-void Mesh::printMac(const uint8_t mac[6]) {
-  String macStr;
-  for (int i = 0; i < 6; i++) {
-    if (mac[i] < 0x10) macStr += "0";
-    macStr += String(mac[i], HEX);
-    if (i < 5) macStr += ":";
-  }
-  Logger::logln("MESH", macStr, LogLevel::LOG_DEBUG);
 }
 
 void Mesh::printMeshMessage(const mesh_message& msg) {
-  auto macToStr = [](const uint8_t mac[6]) -> String {
-    String s;
-    for (int i = 0; i < 6; ++i) {
-      if (mac[i] < 0x10) s += "0";
-      s += String(mac[i], HEX);
-      if (i < 5) s += ":";
-    }
-    return s;
-  };
+  auto macToStr = [](const uint8_t mac[6]) { return planetopia::utils::MacAddress(mac).toString(); };
 
   Logger::logln("MESH", "------ Mesh Message ------", LogLevel::LOG_DEBUG);
   Logger::logln("MESH", "Origin:    " + macToStr(msg.originMacAddress), LogLevel::LOG_DEBUG);
@@ -106,7 +87,7 @@ void Mesh::loadPeersFromEEPROM() {
       uint8_t mac[6];
       for (int j = 0; j < 6; ++j) {
         mac[j] = peerList[i * 6 + j];
-        if (mac[j] == 0xFF) valid = false; // treat 0xFF as empty
+        if (mac[j] == 0xFF) valid = false;  // treat 0xFF as empty
       }
       if (valid) {
         PeerInfo peer;
@@ -144,12 +125,11 @@ void Mesh::savePeersToEEPROM() {
 }
 
 void Mesh::addPeerToEEPROM(const uint8_t mac[6]) {
-  if (findPeer(mac) || macEquals(mac, deviceMacAddress)) return;
+  if (findPeer(mac) || planetopia::utils::MacAddress(mac) == planetopia::utils::MacAddress(deviceMacAddress)) return;
 
   if (peerMacs.size() >= MAX_PEERS) {
-    ErrorHandler::getInstance().signalError(
-      ErrorType::MEMORY_ERROR,
-      "Peer list full! Cannot add new peer. MAX_PEERS reached.");
+    planetopia::err::fail(planetopia::utils::ErrorType::MEMORY_ERROR,
+                          "Peer list full! Cannot add new peer. MAX_PEERS reached.");
     return;
   }
 
@@ -166,34 +146,26 @@ void Mesh::addPeerToEEPROM(const uint8_t mac[6]) {
   info.encrypt = true;
   memcpy(info.lmk, meshKey, MESH_KEY_SIZE);
   esp_err_t result = esp_now_add_peer(&info);
-  if (result != ESP_OK) {
-    ErrorHandler::getInstance().signalError(
-      ErrorType::COMMUNICATION_FAIL,
-      ("Failed to add ESP-NOW peer in addPeerToEEPROM: " + String(esp_err_to_name(result))).c_str());
-  } else {
-    Logger::logln("MESH", "Peer added for encryption", LogLevel::LOG_DEBUG);
-  }
+  planetopia::err::checkEsp(result, planetopia::utils::ErrorType::COMMUNICATION_FAIL, "addPeerToEEPROM: add_peer failed");
+  Logger::logln("MESH", "Peer added for encryption", LogLevel::LOG_DEBUG);
 }
 
 void Mesh::removePeerFromEEPROM(const uint8_t mac[6]) {
   for (auto it = peerMacs.begin(); it != peerMacs.end(); ++it) {
-    if (macEquals(it->mac, mac)) {
+    if (planetopia::utils::MacAddress(it->mac) == planetopia::utils::MacAddress(mac)) {
       peerMacs.erase(it);
       break;
     }
   }
   savePeersToEEPROM();
   esp_err_t result = esp_now_del_peer(mac);
-  if (result != ESP_OK) {
-    ErrorHandler::getInstance().signalError(ErrorType::COMMUNICATION_FAIL, ("Failed to add ESP-NOW peer: " + String(esp_err_to_name(result))).c_str());
-  } else {
-    Logger::logln("MESH", "Added ESP-NOW peer.", LogLevel::LOG_DEBUG);
-  }
+  planetopia::err::checkEsp(result, planetopia::utils::ErrorType::COMMUNICATION_FAIL, "removePeerFromEEPROM: del_peer failed");
+  Logger::logln("MESH", "Removed ESP-NOW peer.", LogLevel::LOG_DEBUG);
 }
 
 PeerInfo* Mesh::findPeer(const uint8_t mac[6]) {
   for (auto& peer : peerMacs) {
-    if (macEquals(peer.mac, mac)) return &peer;
+    if (planetopia::utils::MacAddress(peer.mac) == planetopia::utils::MacAddress(mac)) return &peer;
   }
   return nullptr;
 }
@@ -206,9 +178,9 @@ PeerInfo* Mesh::findNextHopToMaster() {
   // For this mesh: nextHop == currentMaster.nextHop
   if (currentMaster.distance == 0xFF) return nullptr;
   for (auto& peer : peerMacs) {
-    if (macEquals(peer.mac, currentMaster.nextHop)
+    if (planetopia::utils::MacAddress(peer.mac) == planetopia::utils::MacAddress(currentMaster.nextHop)
         && isPeerInRange(peer.mac)
-        && !macEquals(peer.mac, deviceMacAddress))
+        && planetopia::utils::MacAddress(peer.mac) != planetopia::utils::MacAddress(deviceMacAddress))
       return &peer;
   }
   return nullptr;
@@ -230,115 +202,90 @@ mesh_message Mesh::buildMessage(adapter_types type, const uint8_t data[12], Mesh
   return msg;
 }
 
+// ---------- Tiger Style init helpers ----------
 bool Mesh::init() {
   instance = this;
-  WiFi.mode(WIFI_STA);
-  esp_wifi_set_channel(planetopia::config::WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
 
-  readMacAddress();
+  // 1. Load persisted peers/keys
+  loadPersistentState();
 
-  // Load peer list
-  loadPeersFromEEPROM();
-  loadMeshKeyFromEEPROM();
+  // 2. Configure Wi-Fi
+  if (!setupWiFi()) return false;
 
-  esp_err_t espNowInit = esp_now_init();
-  if (espNowInit != ESP_OK) {
-    ErrorHandler::getInstance().signalError(
-      ErrorType::COMMUNICATION_FAIL,
-      ("MESH: Error initializing ESP-NOW: " + String(esp_err_to_name(espNowInit))).c_str());
-    return false;
-  }
-
-  // Set primary master key for encryption
-  esp_now_set_pmk(meshKey);
-
-  for (auto& p : peerMacs) {
-    registerPeerWithEspNow(p.mac, meshKey);
-  }
-  Logger::logln("MESH", "ESP-NOW initialized successfully", LogLevel::LOG_INFO);
-
-  esp_now_register_send_cb(onDataSentCallback);
-
-  esp_now_register_recv_cb(Mesh::dataRecvTrampoline);
+  // 3. Init ESP-NOW
+  if (!setupEspNow()) return false;
 
   return true;
 }
+
+bool Mesh::setupWiFi() {
+  WiFi.mode(WIFI_STA);
+  planetopia::err::checkEsp(
+    esp_wifi_set_channel(planetopia::config::WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE),
+    planetopia::utils::ErrorType::HARDWARE_FAILURE,
+    "Failed to set WiFi channel");
+
+  readMacAddress();
+  return true;
+}
+
+void Mesh::loadPersistentState() {
+  loadPeersFromEEPROM();
+  loadMeshKeyFromEEPROM();
+}
+
+bool Mesh::setupEspNow() {
+  esp_err_t res = esp_now_init();
+  if (res != ESP_OK) {
+    planetopia::err::fail(planetopia::utils::ErrorType::COMMUNICATION_FAIL,
+                          (String("MESH: esp_now_init failed: ") + esp_err_to_name(res)).c_str());
+    return false;
+  }
+  esp_now_set_pmk(meshKey);
+  for (auto& p : peerMacs) {
+    registerPeerWithEspNow(p.mac, meshKey);
+  }
+  esp_now_register_send_cb(onDataSentCallback);
+  esp_now_register_recv_cb(Mesh::dataRecvTrampoline);
+  Logger::logln("MESH", "ESP-NOW initialized successfully", LogLevel::LOG_INFO);
+  return true;
+}
+// ------------------------------------------------
+
 
 void Mesh::onDataSentCallback(const wifi_tx_info_t* mac_addr, esp_now_send_status_t status) {
   String statusStr = (status == ESP_NOW_SEND_SUCCESS) ? "Delivery Success" : "Delivery Fail";
   Logger::logln("MESH", "Last Packet Send Status: " + statusStr, LogLevel::LOG_DEBUG);
 }
 
-void Mesh::onDataRecvCallback(const esp_now_recv_info* mac, const uint8_t* incomingData, int len) {
+void Mesh::onDataRecvCallback(const esp_now_recv_info* info, const uint8_t* incomingData, int len) {
+  planetopia::err::check(incomingData != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR, "Mesh incomingData is null");
+  planetopia::err::check(len >= sizeof(mesh_message), planetopia::utils::ErrorType::CONFIG_ERROR, "Mesh data length too small");
   if (!incomingData || len < sizeof(mesh_message)) {
-    ErrorHandler::getInstance().signalError(
-      ErrorType::COMMUNICATION_FAIL,
-      "MESH: Invalid incoming data or length");
+    planetopia::err::fail(planetopia::utils::ErrorType::COMMUNICATION_FAIL,
+                          "MESH: Invalid incoming data or length");
     return;
   }
 
-  mesh_message dataToReceive;
-  memcpy(&dataToReceive, incomingData, sizeof(dataToReceive));
+  mesh_message msg;
+  memcpy(&msg, incomingData, sizeof(msg));
 
   Logger::logln("MESH", "Bytes received:", LogLevel::LOG_DEBUG);
-  printMeshMessage(dataToReceive);
+  printMeshMessage(msg);
 
-  // Update lastSeenMillis for sender, add if new
-  if (mac && mac->src_addr) {
-    if (!macEquals(mac->src_addr, deviceMacAddress)) {
-      PeerInfo* p = findPeer(mac->src_addr);
-      if (!p) {
-        addPeerToEEPROM(mac->src_addr);
-      } else {
-        p->lastSeenMillis = millis();
-      }
-    }
-  }
+  // Update peer last-seen
+  updatePeerLastSeen(info);
 
-  // Multi-master detection
-  if (dataToReceive.messageType == MESH_TYPE_MASTER_BEACON) {
-    if (!macEquals(lastSeenMasterMac, dataToReceive.originMacAddress) && lastSeenMasterMac[0] != 0) {
-      Logger::logln("MESH", "WARNING: Multiple masters detected!", LogLevel::LOG_WARN);
-      ErrorHandler::getInstance().signalError(
-        ErrorType::CONFIG_ERROR,
-        "Multiple master nodes detected! Network split or misconfiguration likely.");
-    }
-    memcpy(lastSeenMasterMac, dataToReceive.originMacAddress, 6);
-
-    uint8_t beaconHop = dataToReceive.hopCount;
-    uint8_t newDistance = beaconHop + 1;
-
-    // Loop prevention
-    if (macEquals(dataToReceive.lastHopMacAddress, deviceMacAddress)) {
-      Logger::logln("MESH", "Ignoring beacon from myself (loop prevention)", LogLevel::LOG_DEBUG);
-      return;
-    }
-
-    if (currentMaster.distance == 0xFF || !macEquals(currentMaster.mac, dataToReceive.originMacAddress) || newDistance < currentMaster.distance) {
-
-      memcpy(currentMaster.mac, dataToReceive.originMacAddress, 6);
-      currentMaster.distance = newDistance;
-      memcpy(currentMaster.nextHop, dataToReceive.lastHopMacAddress, 6);
-
-      Logger::logln("MESH", "Updated route to master. Distance: " + String(newDistance), LogLevel::LOG_INFO);
-    }
-
-    // Only relay if not master and not a loop
-    if (!isMaster) {
-      mesh_message relay = dataToReceive;
-      relay.hopCount = newDistance;
-      memcpy(relay.lastHopMacAddress, deviceMacAddress, 6);
-      if (!macEquals(relay.lastHopMacAddress, deviceMacAddress)) {
-        transmitCore(relay.dataType, relay.data, MESH_TYPE_MASTER_BEACON, &relay);
-        Logger::logln("MESH", "Relayed master beacon. My distance: " + String(newDistance), LogLevel::LOG_DEBUG);
-      }
-    }
-    return;
-  }
-
-  // Adapter data messages:
-  if (externalRecvCallback) {
-    externalRecvCallback(dataToReceive);
+  switch (msg.messageType) {
+    case MESH_TYPE_MASTER_BEACON:
+      processMasterBeacon(msg);
+      break;
+    case MESH_TYPE_ADAPTER_DATA:
+      processAdapterData(msg);
+      break;
+    default:
+      Logger::logln("MESH", "Unknown message type", LogLevel::LOG_WARN);
+      break;
   }
 }
 
@@ -349,7 +296,7 @@ void Mesh::dataRecvTrampoline(const esp_now_recv_info* mac_addr, const uint8_t* 
 }
 
 void Mesh::sendMessage(const uint8_t target[6], mesh_message msg) {
-  if (macEquals(target, deviceMacAddress)) {
+  if (planetopia::utils::MacAddress(target) == planetopia::utils::MacAddress(deviceMacAddress)) {
     Logger::logln("MESH", "Not sending to self. Skipped.", LogLevel::LOG_DEBUG);
     return;
   }
@@ -358,9 +305,8 @@ void Mesh::sendMessage(const uint8_t target[6], mesh_message msg) {
   if (result == ESP_OK) {
     Logger::logln("MESH", "Message sent to peer", LogLevel::LOG_DEBUG);
   } else {
-    ErrorHandler::getInstance().signalError(
-      ErrorType::COMMUNICATION_FAIL,
-      ("MESH: Error sending message: " + String(esp_err_to_name(result))).c_str());
+    planetopia::err::fail(planetopia::utils::ErrorType::COMMUNICATION_FAIL,
+                          (String("MESH: Error sending message: ") + esp_err_to_name(result)).c_str());
   }
 }
 
@@ -392,7 +338,7 @@ void Mesh::transmitCore(const adapter_types type, const uint8_t data[12], MeshMe
 
   // Routing: always use next hop if possible
   PeerInfo* nextHop = findNextHopToMaster();
-  if (nextHop && !macEquals(nextHop->mac, deviceMacAddress)) {
+  if (nextHop && planetopia::utils::MacAddress(nextHop->mac) != planetopia::utils::MacAddress(deviceMacAddress)) {
     sendMessage(nextHop->mac, msg);
   } else {
     Logger::logln("MESH", "No next hop to master, cannot send!", LogLevel::LOG_WARN);
@@ -425,7 +371,7 @@ void Mesh::broadcastMasterBeacon() {
   // Always send a broadcast frame so new nodes can discover the master even
   // when they are not yet in the peer list.
   esp_err_t br = esp_now_send(nullptr, (uint8_t*)&beacon, sizeof(beacon));
-  Logger::logln("MESH", String("Beacon broadcast ") + (br==ESP_OK?"OK":"FAIL"), LogLevel::LOG_DEBUG);
+  Logger::logln("MESH", String("Beacon broadcast ") + (br == ESP_OK ? "OK" : "FAIL"), LogLevel::LOG_DEBUG);
 
   // Then unicast to known peers for reliability
   broadcastToAllPeers(beacon);
@@ -434,6 +380,12 @@ void Mesh::broadcastMasterBeacon() {
 // Optional peer management (can be used in your admin tools)
 void Mesh::addPeer(const uint8_t mac[6]) {
   if (!findPeer(mac)) {
+    if (peerMacs.size() >= MAX_PEERS) {
+      planetopia::err::fail(planetopia::utils::ErrorType::MEMORY_ERROR,
+                            "Peer list full! Cannot add new peer. MAX_PEERS reached.");
+      Logger::logln("MESH", "Peer list is full, skipping add", LogLevel::LOG_WARN);
+      return;
+    }
     PeerInfo p;
     memcpy(p.mac, mac, 6);
     p.lastSeenMillis = 0;
@@ -470,7 +422,7 @@ void Mesh::loadMeshKeyFromEEPROM() {
   if (unset) {
     Logger::logln("MESH", "Mesh key unset, loading default from config", LogLevel::LOG_INFO);
     memcpy(meshKey, planetopia::config::DEFAULT_MESH_KEY, MESH_KEY_SIZE);
-    saveMeshKeyToEEPROM(meshKey); // Will be skipped automatically in dev mode
+    saveMeshKeyToEEPROM(meshKey);  // Will be skipped automatically in dev mode
   }
 }
 
@@ -514,6 +466,47 @@ void Mesh::debugDumpRadio() {
   }
   Logger::logln("MESH", out, LogLevel::LOG_INFO);
 }
+
+// ---------- Tiger Style helper implementations ----------
+void Mesh::updatePeerLastSeen(const esp_now_recv_info* info) {
+  if (!info || !info->src_addr) return;
+  if (planetopia::utils::MacAddress(info->src_addr) == planetopia::utils::MacAddress(deviceMacAddress)) return;
+  PeerInfo* p = findPeer(info->src_addr);
+  if (!p) {
+    addPeerToEEPROM(info->src_addr);
+  } else {
+    p->lastSeenMillis = millis();
+  }
+}
+
+void Mesh::processMasterBeacon(const mesh_message& msg) {
+  if (planetopia::utils::MacAddress(lastSeenMasterMac) != planetopia::utils::MacAddress(msg.originMacAddress) && lastSeenMasterMac[0] != 0) {
+    Logger::logln("MESH", "WARNING: Multiple masters detected!", LogLevel::LOG_WARN);
+    planetopia::err::fail(planetopia::utils::ErrorType::CONFIG_ERROR,
+                          "Multiple master nodes detected! Network split or misconfiguration likely.");
+  }
+  memcpy(lastSeenMasterMac, msg.originMacAddress, 6);
+
+  uint8_t newDistance = msg.hopCount + 1;
+  if (currentMaster.distance == 0xFF || planetopia::utils::MacAddress(currentMaster.mac) != planetopia::utils::MacAddress(msg.originMacAddress) || newDistance < currentMaster.distance) {
+    memcpy(currentMaster.mac, msg.originMacAddress, 6);
+    currentMaster.distance = newDistance;
+    memcpy(currentMaster.nextHop, msg.lastHopMacAddress, 6);
+    Logger::logln("MESH", "Updated route to master. Distance: " + String(newDistance), LogLevel::LOG_INFO);
+  }
+
+  if (!isMaster) {
+    mesh_message relay = msg;
+    relay.hopCount = newDistance;
+    memcpy(relay.lastHopMacAddress, deviceMacAddress, 6);
+    transmitCore(relay.dataType, relay.data, MESH_TYPE_MASTER_BEACON, &relay);
+  }
+}
+
+void Mesh::processAdapterData(const mesh_message& msg) {
+  if (externalRecvCallback) externalRecvCallback(msg);
+}
+// --------------------------------------------------------
 
 }
 }

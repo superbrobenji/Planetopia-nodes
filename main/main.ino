@@ -3,7 +3,8 @@
 #include "src/core/Logger.h"
 #include "src/hardware/output/Led.h"
 #include "src/hardware/input/Button.h"
-#include "src/core/ErrorHandler.h"
+#include "src/error/Error.h"
+#include "src/error/ErrorCore.h"
 #include "src/persistence/EEPROM_Manager.h"
 #include "project_config.h"
 #include <esp_wifi.h>
@@ -41,8 +42,8 @@ planetopia::mesh::Mesh mesh;
 planetopia::mesh::mesh_message transmissionMessage;
 
 Adapter* adapter = nullptr;
-bool isDevMode = false;  // Global variable to track dev mode state
-bool devMasterFlag = planetopia::config::DEFAULT_DEV_MASTER; // runtime master flag used in dev mode
+bool isDevMode = false;                                       // Global variable to track dev mode state
+bool devMasterFlag = planetopia::config::DEFAULT_DEV_MASTER;  // runtime master flag used in dev mode
 
 //define all known MAC addresses for your mesh (update with your real MACs!)
 const uint8_t (*defaultPeerList)[6] = planetopia::config::DEFAULT_PEERS;
@@ -146,20 +147,18 @@ void setup() {
     }
   }
 
-// Seven segment conditional init
-if (planetopia::config::ENABLE_SEVSEG_DISPLAY) {
-  sevenSeg.init();
-  ErrorHandler::getInstance().init(&redLed, &sevenSeg);
-} else {
-  ErrorHandler::getInstance().init(&redLed, nullptr);
-}
+  // Seven segment conditional init
+  if (planetopia::config::ENABLE_SEVSEG_DISPLAY) {
+    sevenSeg.init();
+    planetopia::utils::ErrorCore::getInstance().init(&redLed, &sevenSeg);
+  } else {
+    planetopia::utils::ErrorCore::getInstance().init(&redLed, nullptr);
+  }
 
   if (!greenLed.isInitialized()) {
     if (!greenLed.init()) {
       Logger::logln("MAIN", "FATAL: Failed to initialize green LED!", LogLevel::LOG_ERROR);
-      ErrorHandler::getInstance().signalError(
-        ErrorType::HARDWARE_FAILURE,
-        "MAIN: Failed to initialize green LED");
+      planetopia::err::fatal(planetopia::utils::ErrorType::HARDWARE_FAILURE, "MAIN: Failed to initialize green LED");
       while (true) {
         delay(1000);
       }
@@ -168,18 +167,18 @@ if (planetopia::config::ENABLE_SEVSEG_DISPLAY) {
 
   if (!configButton.init()) {
     Logger::error("Config button initialization failed!");
-    ErrorHandler::getInstance().signalError(ErrorType::HARDWARE_FAILURE, "Config button init failed!");
+    planetopia::err::fail(planetopia::utils::ErrorType::HARDWARE_FAILURE, "Config button init failed!");
   }
 
   if (!resetButton.init()) {
     Logger::error("Reset button initialization failed!");
-    ErrorHandler::getInstance().signalError(ErrorType::HARDWARE_FAILURE, "Reset button init failed!");
+    planetopia::err::fail(planetopia::utils::ErrorType::HARDWARE_FAILURE, "Reset button init failed!");
   }
 
   // Initialize EEPROM Manager
   if (!EEPROM_Manager::getInstance().init()) {
     Logger::logln("MAIN", "Failed to initialize EEPROM Manager", LogLevel::LOG_ERROR);
-    ErrorHandler::getInstance().signalError(ErrorType::MEMORY_ERROR, "EEPROM Manager init failed!");
+    planetopia::err::fatal(planetopia::utils::ErrorType::MEMORY_ERROR, "EEPROM Manager init failed!");
     while (true) {
       redLed.blink(4, 100, 100);
       delay(1000);
@@ -217,8 +216,8 @@ if (planetopia::config::ENABLE_SEVSEG_DISPLAY) {
   if (isDevMode) {
     // In dev mode, create default adapter from config
     adapter = planetopia::adapter::AdapterFactory::createAdapter(
-        planetopia::config::DEFAULT_ADAPTER,
-        planetopia::adapter::AdapterFactory::getDefaultPinForAdapter(planetopia::config::DEFAULT_ADAPTER));
+      planetopia::config::DEFAULT_ADAPTER,
+      planetopia::adapter::AdapterFactory::getDefaultPinForAdapter(planetopia::config::DEFAULT_ADAPTER));
     Logger::logln("MAIN", "Created default adapter (DEV mode)", LogLevel::LOG_INFO);
   } else {
     // In production mode, create from EEPROM
@@ -228,9 +227,7 @@ if (planetopia::config::ENABLE_SEVSEG_DISPLAY) {
 
   if (!adapter) {
     Logger::logln("MAIN", "Failed to create adapter", LogLevel::LOG_ERROR);
-    ErrorHandler::getInstance().signalError(
-      ErrorType::HARDWARE_FAILURE,
-      "MAIN: Failed to create PIR adapter");
+    planetopia::err::fatal(planetopia::utils::ErrorType::HARDWARE_FAILURE, "MAIN: Failed to create PIR adapter");
     while (true) {
       redLed.blink(3, 150, 150);
       delay(800);
@@ -240,9 +237,7 @@ if (planetopia::config::ENABLE_SEVSEG_DISPLAY) {
 
   if (!adapter->init()) {
     Logger::logln("MAIN", "Adapter failed to initialize", LogLevel::LOG_ERROR);
-    ErrorHandler::getInstance().signalError(
-      ErrorType::HARDWARE_FAILURE,
-      "MAIN: Adapter failed to initialize");
+    planetopia::err::fatal(planetopia::utils::ErrorType::HARDWARE_FAILURE, "MAIN: Adapter failed to initialize");
     while (true) {
       redLed.blink(6, 100, 100);
       delay(1000);

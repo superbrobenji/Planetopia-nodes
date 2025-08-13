@@ -22,16 +22,23 @@ The display always shows a 4-digit number **T M SS** where:
 
 ## How to add a new code
 ```cpp
-// Example: mesh peer list overflow
-constexpr uint8_t MESH_PEER_OVERFLOW = 1;   // SS part
-ErrorHandler::getInstance().signalError(
-        core::ErrorTypeDigit::MEMORY,
-        core::ModuleDigit::MESH,
-        MESH_PEER_OVERFLOW,
-        "Peer vector overflow");
-```
-The display will show **3201**.
+#include "src/error/Error.h"
 
-| Code | Meaning |
-|------|---------|
-| 1201 | Hardware error in adapter – TM1637 ACK timeout (SevenSegDisplay) |
+// Example: mesh peer-list overflow in the Mesh module (sub-id 0x01)
+constexpr uint8_t MESH_PEER_OVERFLOW = 0x01; // local registry only – for the table below
+
+// Report the error in one line:
+planetopia::err::fail(utils::ErrorType::MEMORY_ERROR,
+                      "Peer vector overflow");
+/*
+ * The helper does three things for you:
+ *  1) Logs the message at ERROR level
+ *  2) For boards with a seven-segment display it shows 3-2-01
+ *       (MEMORY / MESH / 01) automatically
+ *  3) Blinks the error LED four times (MEMORY category) and, if configured,
+ *     triggers a safe reboot.
+ *
+ * Note: never call ErrorCore directly – always go through the helpers in
+ *       src/error/Error.h (err::fail, err::fatal, ERROR_CHECK*, …).
+ */
+```

@@ -8,8 +8,10 @@
 #include <esp_wifi.h>
 #include <vector>
 #include <array>
+#include <cstdint>
 #include "src/Adapter/Adapter.h"
 #include "src/persistence/EEPROM_Manager.h"
+#include "../../project_config.h"  // Added for global limits/config
 
 namespace planetopia {
 namespace mesh {
@@ -37,7 +39,7 @@ struct mesh_message {
 // Peer info struct for RAM and EEPROM storage
 struct PeerInfo {
   uint8_t mac[6];
-  unsigned long lastSeenMillis;
+  uint32_t lastSeenMillis;
 };
 
 // Master routing info
@@ -49,7 +51,7 @@ struct MasterInfo {
 
 class Mesh {
 private:
-  static constexpr unsigned long BEACON_INTERVAL_MS = 2000;
+  static constexpr uint32_t BEACON_INTERVAL_MS = planetopia::config::MASTER_BEACON_INTERVAL_MS;
   static constexpr int MESH_KEY_SIZE = 16;
 
   uint8_t meshKey[MESH_KEY_SIZE];
@@ -77,7 +79,7 @@ private:
 
   MasterInfo currentMaster;
   bool isMaster;
-  unsigned long lastBeaconMillis;
+  uint32_t lastBeaconMillis;
 
   // Peer EEPROM management
   void loadPeersFromEEPROM();
@@ -99,6 +101,16 @@ private:
   void saveMeshKeyToEEPROM(const uint8_t* key);
   void generateRandomMeshKey();
   bool meshKeyIsSet() const;
+
+  // --- Tiger Style refactor helpers ---
+  void updatePeerLastSeen(const esp_now_recv_info* info);
+  void processMasterBeacon(const mesh_message& msg);
+  void processAdapterData(const mesh_message& msg);
+
+  // Setup helpers (Tiger Style refactor)
+  bool setupWiFi();
+  bool setupEspNow();
+  void loadPersistentState();
 
 public:
   Mesh();

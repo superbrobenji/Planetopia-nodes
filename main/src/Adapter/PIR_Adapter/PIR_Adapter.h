@@ -3,6 +3,7 @@
 
 #include "src/Adapter/Adapter.h"
 #include "src/hardware/input/Pir.h"
+#include <cstdint>
 
 namespace planetopia {
 namespace adapter {
@@ -20,8 +21,8 @@ public:
 
 private:
   hardware::Pir _pir;
-  unsigned int _cooldownSeconds;
-  unsigned long _lastTrigger;
+  uint16_t _cooldownSeconds;
+  uint32_t _lastTrigger;
   bool _timerActive;
   bool _motionSent;
   bool _interruptEnabled;
