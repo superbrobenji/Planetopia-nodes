@@ -8,6 +8,7 @@
 #include "src/persistence/EEPROM_Manager.h"
 #include "project_config.h"
 #include <esp_task_wdt.h>
+#include <memory>
 
 constexpr unsigned long MASTER_BEACON_INTERVAL_MS = planetopia::config::MASTER_BEACON_INTERVAL_MS;
 
@@ -41,7 +42,7 @@ SevenSegDisplay sevenSeg(planetopia::config::SEVSEG_DATA_PIN,
 planetopia::mesh::Mesh mesh;
 planetopia::mesh::mesh_message transmissionMessage;
 
-Adapter* adapter = nullptr;
+std::unique_ptr<planetopia::adapter::Adapter> adapter;
 bool isDevMode = false;                                       // Global variable to track dev mode state
 bool devMasterFlag = planetopia::config::DEFAULT_DEV_MASTER;  // runtime master flag used in dev mode
 
@@ -203,13 +204,13 @@ void setup() {
   // Create adapter (from EEPROM if production mode, or default if dev mode)
   if (isDevMode) {
     // In dev mode, create default adapter from config
-    adapter = planetopia::adapter::AdapterFactory::createAdapter(
+    adapter.reset(planetopia::adapter::AdapterFactory::createAdapter(
       planetopia::config::DEFAULT_ADAPTER,
-      planetopia::adapter::AdapterFactory::getDefaultPinForAdapter(planetopia::config::DEFAULT_ADAPTER));
+      planetopia::adapter::AdapterFactory::getDefaultPinForAdapter(planetopia::config::DEFAULT_ADAPTER)));
     Logger::logln("MAIN", "Created default adapter (DEV mode)", LogLevel::LOG_INFO);
   } else {
     // In production mode, create from EEPROM
-    adapter = planetopia::adapter::AdapterFactory::createFromEEPROM();
+    adapter.reset(planetopia::adapter::AdapterFactory::createFromEEPROM());
     Logger::logln("MAIN", "Created adapter from EEPROM (PRODUCTION mode)", LogLevel::LOG_INFO);
   }
 

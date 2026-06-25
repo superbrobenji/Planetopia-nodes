@@ -11,11 +11,11 @@ namespace adapter {
 
 using namespace planetopia::utils;
 
-// Static dev mode flag
-static bool isDevMode = false;
+// Initialize class static member
+bool AdapterFactory::isDevMode_ = false;
 
 void AdapterFactory::setDevMode(bool isDev) {
-  isDevMode = isDev;
+  isDevMode_ = isDev;
   Logger::logln("Factory", String("Dev mode ") + (isDev ? "enabled" : "disabled"), LogLevel::LOG_INFO);
 }
 
@@ -40,7 +40,7 @@ Adapter* AdapterFactory::createAdapter(adapter_types type, int pin) {
 }
 
 adapter_types AdapterFactory::loadAdapterTypeFromEEPROM() {
-  if (isDevMode) {
+  if (isDevMode_) {
     Logger::logln("Factory", "Dev mode: returning default PIR adapter type", LogLevel::LOG_DEBUG);
     return PIR_ADAPTER;  // Always return default in dev mode
   }
@@ -50,7 +50,7 @@ adapter_types AdapterFactory::loadAdapterTypeFromEEPROM() {
 }
 
 void AdapterFactory::saveAdapterTypeToEEPROM(adapter_types type) {
-  if (isDevMode) {
+  if (isDevMode_) {
     Logger::logln("Factory", "Dev mode: skipping EEPROM save for adapter type", LogLevel::LOG_DEBUG);
     return;  // Don't save to EEPROM in dev mode
   }
@@ -65,7 +65,7 @@ Adapter* AdapterFactory::createFromEEPROM() {
 }
 
 void AdapterFactory::initializeDefaultsIfUnset() {
-  if (isDevMode) {
+  if (isDevMode_) {
     Logger::logln("Factory", "Dev mode: skipping EEPROM initialization", LogLevel::LOG_DEBUG);
     return;  // Don't initialize EEPROM in dev mode
   }

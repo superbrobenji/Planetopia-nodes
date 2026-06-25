@@ -35,6 +35,9 @@ public:
 
   // Set dev mode flag (bypasses EEPROM operations)
   static void setDevMode(bool isDev);
+
+private:
+  static bool isDevMode_;
 };
 
 }
