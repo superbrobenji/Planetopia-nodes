@@ -126,6 +126,11 @@ private:
   uint8_t devicePublicKey[32];
   void loadOrGenerateKeypair();
 
+  // Pending enrollment relay (filled in ESP-NOW callback, drained in loop())
+  volatile bool _pendingEnrollmentRelay = false;
+  uint8_t       _pendingEnrollmentMac[6]{};
+  uint8_t       _pendingEnrollmentPubKey[32]{};
+
 public:
   Mesh();
   bool init();
@@ -140,6 +145,9 @@ public:
 
   // Master timeout check: call in main loop; clears stale master route on timeout
   void checkMasterTimeout();
+
+  // Drain pending work queued from ISR/callback contexts (call from main loop())
+  void loop();
 
   // Node role config
   void setIsMaster(bool value) {

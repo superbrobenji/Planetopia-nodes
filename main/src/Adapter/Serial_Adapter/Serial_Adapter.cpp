@@ -498,6 +498,10 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
       }
       return;
     } else if (op == OP_ENROLLMENT_REJECT) {
+      if (len < 7) {
+        Logger::logln("Serial_Adapter", "OP_ENROLLMENT_REJECT frame too short", LogLevel::LOG_WARN);
+        return;
+      }
       Logger::logln("Serial_Adapter", "Server rejected enrollment request", LogLevel::LOG_WARN);
       return;
     }

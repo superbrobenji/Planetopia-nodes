@@ -824,9 +824,11 @@ void Mesh::processEnrollmentRequest(const mesh_message& msg) {
   }
 
   if ((buf[slot].received & 0x07) == 0x07) {
-    // All 3 chunks received — relay to server via serial
-    Logger::logln("MESH", "Enrollment request complete, relaying to server", LogLevel::LOG_INFO);
-    planetopia::adapter::Serial_Adapter::relayEnrollmentToServer(buf[slot].mac, buf[slot].key);
+    // All 3 chunks received — defer relay to loop() to avoid Serial.write() from callback context
+    Logger::logln("MESH", "Enrollment request complete, deferring relay to loop()", LogLevel::LOG_INFO);
+    memcpy(_pendingEnrollmentMac, buf[slot].mac, 6);
+    memcpy(_pendingEnrollmentPubKey, buf[slot].key, 32);
+    _pendingEnrollmentRelay = true;
     memset(&buf[slot], 0, sizeof(buf[slot]));  // Clear buffer slot
   }
 }
@@ -883,6 +885,16 @@ void Mesh::enrollPeer(const uint8_t mac[6], const uint8_t publicKey32[32]) {
   Logger::logln("MESH", "JOIN_ACK sent to newly enrolled node", LogLevel::LOG_INFO);
 }
 // --------------------------------------------------------
+
+void Mesh::loop() {
+  // Drain enrollment relay queued from ESP-NOW receive callback (WiFi task context).
+  // Serial.write() must not be called from that callback — safe to do here in loop().
+  if (_pendingEnrollmentRelay) {
+    _pendingEnrollmentRelay = false;
+    planetopia::adapter::Serial_Adapter::relayEnrollmentToServer(
+        _pendingEnrollmentMac, _pendingEnrollmentPubKey);
+  }
+}
 
 }
 }
