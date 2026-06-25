@@ -50,7 +50,7 @@ void Serial_Adapter::sendHealthReport() {
 }
 
 Serial_Adapter::Serial_Adapter(int pin)
-  : Adapter(pin), frameState(FrameState::AwaitingLen1), frameLength(0), frameIndex(0) {
+  : Adapter(pin), frameState(FrameState::AwaitingLen1), frameLength(0), frameIndex(0), lastReportedHopCount(0) {
   _adapterType = adapter_types::SERIAL_ADAPTER;
   memset(payloadBuffer, 0, sizeof(payloadBuffer));
 
@@ -64,11 +64,16 @@ bool Serial_Adapter::init() {
 }
 
 void Serial_Adapter::loop() {
-  // periodic health
-  if (millis() - lastHealthMillis > 5000) {
+  // Health report: send periodically every 30s, or immediately on hop count change
+  planetopia::mesh::Mesh* meshPtr = planetopia::mesh::Mesh::getInstance();
+  uint32_t currentHopCount = meshPtr ? meshPtr->getHopCount() : 0;
+  bool stateChanged = (currentHopCount != lastReportedHopCount);
+
+  if (stateChanged || millis() - lastHealthMillis >= planetopia::config::HEALTH_REPORT_INTERVAL_MS) {
     lastHealthMillis = static_cast<uint32_t>(millis());
-    Logger::logln("Serial_Adapter", "Sending periodic health report", LogLevel::LOG_DEBUG);
+    Logger::logln("Serial_Adapter", String(stateChanged ? "Health report triggered by state change (hopCount: " : "Sending periodic health report (hopCount: ") + String(currentHopCount) + ")", LogLevel::LOG_DEBUG);
     sendHealthReport();
+    lastReportedHopCount = currentHopCount;
   }
 
   while (Serial.available() > 0) {

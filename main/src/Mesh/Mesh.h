@@ -233,6 +233,11 @@ public:
   void sendEnrollmentRequest();
   bool isEnrolled() const;
   void enrollPeer(const uint8_t mac[6], const uint8_t publicKey32[32]);
+
+  // Get current hop count to master (0 if this node is master)
+  uint8_t getHopCount() const {
+    return isMaster ? 0 : currentMaster.distance;
+  }
 };
 
 }  // namespace mesh

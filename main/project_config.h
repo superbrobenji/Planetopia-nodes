@@ -84,6 +84,8 @@ constexpr uint8_t MAX_HOPS = 10;
 constexpr uint32_t STALE_PEER_THRESHOLD_MS = 8000UL;
 // Routing timeout used by MessageRouter (ms)
 constexpr uint32_t ROUTING_TIMEOUT_MS = 5000UL;
+// Health report interval (ms) — periodic send every 30 seconds
+constexpr uint32_t HEALTH_REPORT_INTERVAL_MS = 30000;
 // Future limits (message queue, buffer sizes, etc.) can be centralized here
 
 } // namespace config

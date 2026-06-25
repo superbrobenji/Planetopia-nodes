@@ -60,6 +60,7 @@ private:
   // Health reporter
   static void sendHealthReport();
   static uint32_t lastHealthMillis;
+  uint32_t lastReportedHopCount;
 };
 
 }  // namespace adapter
