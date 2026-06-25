@@ -365,22 +365,36 @@ void loop() {
     buttonWasPressed = false;
   }
 
+  static bool resetConfirmPending = false;
+  static uint32_t resetConfirmDeadline = 0;
+
   if (resetButton.isPressed()) {
     if (!resetButtonWasPressed) {
       resetButtonWasPressed = true;
       resetHoldStart = millis();
     } else if (millis() - resetHoldStart >= BUTTON_HOLD_TIME_MS) {
-      resetButtonWasPressed = false;  // Reset BEFORE action
-      Logger::logln("MAIN", "Reset button held 5s: CLEARING ALL EEPROM!", LogLevel::LOG_WARN);
-      EEPROM_Manager::getInstance().clearAll();
-      redLed.blink(5, 100, 100);
-      greenLed.blink(5, 100, 100);
-      Logger::logln("MAIN", "EEPROM cleared. Restarting in 3 seconds...", LogLevel::LOG_INFO);
-      delay(3000);
-      ESP.restart();
+      resetButtonWasPressed = false;
+      if (!resetConfirmPending) {
+        resetConfirmPending = true;
+        resetConfirmDeadline = millis() + 3000;
+        Logger::logln("MAIN", "Reset armed: hold again within 3s to confirm EEPROM wipe", LogLevel::LOG_WARN);
+        redLed.blink(3, 100, 100);
+      } else if (millis() < resetConfirmDeadline) {
+        resetConfirmPending = false;
+        Logger::logln("MAIN", "EEPROM wipe confirmed. Clearing all...", LogLevel::LOG_WARN);
+        EEPROM_Manager::getInstance().clearAll();
+        redLed.blink(5, 100, 100);
+        greenLed.blink(5, 100, 100);
+        delay(3000);
+        ESP.restart();
+      }
     }
   } else {
     resetButtonWasPressed = false;
+    if (resetConfirmPending && millis() > resetConfirmDeadline) {
+      resetConfirmPending = false;
+      Logger::logln("MAIN", "Reset confirmation timed out", LogLevel::LOG_INFO);
+    }
   }
   // REMOVED: periodic health report was here.
   // Serial_Adapter::loop() handles this correctly when adapter type is SERIAL_ADAPTER.
