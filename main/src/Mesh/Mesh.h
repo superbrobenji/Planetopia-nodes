@@ -152,6 +152,11 @@ private:
   uint32_t lastRelayedEpoch;
   uint16_t lastRelayedSeqNum;
 
+  // Relay jitter: deferred relay pending fields (Task 3)
+  mesh_message relayPendingMsg;
+  uint32_t relayPendingAt;
+  bool relayPending;
+
   // TOFU master MAC — learned on first enrollment beacon, persisted across reboots
   uint8_t knownMasterMac[6];
   bool    hasMasterMac;

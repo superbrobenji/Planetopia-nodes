@@ -162,7 +162,8 @@ Mesh::Mesh()
     bootEpoch(0), txSeqNum(0), replayCacheIdx(0),
     lastRelayedEpoch(0), lastRelayedSeqNum(0),
     hasMasterMac(false), peerCount(0),
-    recvQueueHead(0), recvQueueTail(0), lastBeaconMs(0) {
+    recvQueueHead(0), recvQueueTail(0), lastBeaconMs(0),
+    relayPending(false), relayPendingAt(0) {
   instance = this;
   memset(currentMaster.mac, 0, 6);
   currentMaster.distance = 0xFF;
@@ -175,6 +176,7 @@ Mesh::Mesh()
   memset(knownMasterMac, 0xFF, 6);
   memset(peerMacs, 0, sizeof(peerMacs));
   memset(recvQueue, 0, sizeof(recvQueue));
+  memset(&relayPendingMsg, 0, sizeof(relayPendingMsg));
 }
 
 bool Mesh::appendPeer(const PeerInfo& peer) {
@@ -629,13 +631,10 @@ void Mesh::broadcastMasterBeacon() {
   beacon.data[0] = 1;  // protocolVersion
   beacon.hopCount = 0;
 
-  // Always send a broadcast frame so new nodes can discover the master even
-  // when they are not yet in the peer list.
+  // Broadcast-only: reaches all peers (registered and unregistered) with a single
+  // frame. Unicast loop removed — cuts radio traffic by N-1 frames per beacon period.
   esp_err_t br = esp_now_send(nullptr, reinterpret_cast<const uint8_t*>(&beacon), sizeof(beacon));
   Logger::logln("MESH", String("Beacon broadcast ") + (br == ESP_OK ? "OK" : "FAIL"), LogLevel::LOG_DEBUG);
-
-  // Then unicast to known peers for reliability
-  broadcastToAllPeers(beacon);
 }
 
 // Optional peer management (can be used in your admin tools)
@@ -812,10 +811,16 @@ void Mesh::processMasterBeacon(const mesh_message& msg) {
     lastRelayedEpoch  = msg.epochNum;
     lastRelayedSeqNum = msg.seqNum;
 
-    mesh_message relay = msg;
-    relay.hopCount = newDistance;
-    memcpy(relay.lastHopMacAddress, deviceMacAddress, 6);
-    transmitCore(relay.dataType, relay.data, MESH_TYPE_MASTER_BEACON, &relay);
+    // Defer relay with random jitter to stagger transmissions across all non-master
+    // nodes and eliminate the collision burst that occurs when all nodes relay
+    // within milliseconds of receiving the same beacon.
+    // Jitter window: 10–73 ms (10 + esp_random() % RELAY_JITTER_MAX_MS)
+    uint8_t jitterMs = static_cast<uint8_t>(esp_random() % planetopia::config::RELAY_JITTER_MAX_MS);
+    relayPendingMsg = msg;
+    relayPendingMsg.hopCount = newDistance;
+    memcpy(relayPendingMsg.lastHopMacAddress, deviceMacAddress, 6);
+    relayPendingAt = millis() + 10 + jitterMs;
+    relayPending   = true;
   }
 }
 
@@ -987,6 +992,13 @@ void Mesh::loop() {
     _pendingEnrollmentRelay = false;
     planetopia::adapter::Serial_Adapter::relayEnrollmentToServer(
         _pendingEnrollmentMac, _pendingEnrollmentPubKey);
+  }
+
+  // Deferred beacon relay with jitter: dispatch once the per-node jitter window expires.
+  // This spreads relay transmissions across all non-master nodes to avoid collision bursts.
+  if (relayPending && millis() >= relayPendingAt) {
+    relayPending = false;
+    transmitCore(relayPendingMsg.dataType, relayPendingMsg.data, MESH_TYPE_MASTER_BEACON, &relayPendingMsg);
   }
 
   // Master beacon — broadcastMasterBeacon() guards timing internally via lastBeaconMillis
