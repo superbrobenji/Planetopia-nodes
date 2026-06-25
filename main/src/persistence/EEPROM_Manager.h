@@ -9,28 +9,52 @@ namespace planetopia {
 namespace utils {
 
 // EEPROM address constants - centralized in one place
+// Layout (v2 — expanded for per-peer public keys):
+//   0   MASTER_FLAG      (1 byte)
+//   1   DEV_FLAG         (1 byte)
+//   8   ADAPTER_TYPE     (1 byte)
+//  16   MESH_KEY         (16 bytes, ends 31)
+//  32   PEER_LIST        (380 bytes: 10 × 38B records, ends 411)
+// 412   REBOOT_REASON    (1 byte)
+// 413   REBOOT_COUNT     (1 byte)
+// 414   RESERVED         (3 bytes: 414-416)
+// 417   PRIVATE_KEY      (32 bytes, ends 448)
+// 449   PUBLIC_KEY       (32 bytes, ends 480)
+// 481   KEYPAIR_CRC      (2 bytes, ends 482)
+// 483   ENROLLED_FLAG    (1 byte)
+// Total used: 484 bytes — fits in 512
 namespace EEPROM_ADDRESSES {
-constexpr uint16_t MASTER_FLAG = 0;   // Master flag (1 byte)
-constexpr uint16_t DEV_FLAG = 1;      // Dev mode flag (1 byte)
-constexpr uint16_t MESH_KEY = 16;     // Mesh encryption key (16 bytes)
-constexpr uint16_t PEER_LIST = 32;    // Peer MAC addresses (60 bytes)
-constexpr uint16_t ADAPTER_TYPE = 8;  // Adapter type (1 byte)
-constexpr uint16_t REBOOT_REASON = 92;  // 1 byte: last reset reason
-constexpr uint16_t REBOOT_COUNT  = 93;  // 1 byte: consecutive unexpected reboot count
-constexpr uint16_t RESERVED = 94;       // Reserved for future use (3 bytes: 94, 95, 96)
-constexpr uint16_t PRIVATE_KEY   = 97;  // 32 bytes: Curve25519 private key
-constexpr uint16_t PUBLIC_KEY    = 129; // 32 bytes: Curve25519 public key
-constexpr uint16_t KEYPAIR_CRC   = 161; // 2 bytes: CRC16 over private+public key
-constexpr uint16_t ENROLLED_FLAG = 163; // 1 byte: 0x01 = enrolled, 0xFF = not enrolled
+constexpr uint16_t MASTER_FLAG = 0;      // Master flag (1 byte)
+constexpr uint16_t DEV_FLAG = 1;         // Dev mode flag (1 byte)
+constexpr uint16_t ADAPTER_TYPE = 8;     // Adapter type (1 byte)
+constexpr uint16_t MESH_KEY = 16;        // Mesh encryption key (16 bytes)
+constexpr uint16_t PEER_LIST = 32;       // Peer records: 10 × (6 MAC + 32 pubkey) = 380 bytes
+constexpr uint16_t REBOOT_REASON = 412;  // 1 byte: last reset reason
+constexpr uint16_t REBOOT_COUNT  = 413;  // 1 byte: consecutive unexpected reboot count
+constexpr uint16_t RESERVED = 414;       // Reserved for future use (3 bytes: 414-416)
+constexpr uint16_t PRIVATE_KEY   = 417;  // 32 bytes: Curve25519 private key
+constexpr uint16_t PUBLIC_KEY    = 449;  // 32 bytes: Curve25519 public key
+constexpr uint16_t KEYPAIR_CRC   = 481;  // 2 bytes: CRC16 over private+public key
+constexpr uint16_t ENROLLED_FLAG = 483;  // 1 byte: 0x01 = enrolled, 0xFF = not enrolled
+
+// Old v1 addresses (used only during migration in EEPROM_Manager::init())
+constexpr uint16_t V1_REBOOT_REASON = 92;
+constexpr uint16_t V1_REBOOT_COUNT  = 93;
+constexpr uint16_t V1_PRIVATE_KEY   = 97;
+constexpr uint16_t V1_PUBLIC_KEY    = 129;
+constexpr uint16_t V1_KEYPAIR_CRC   = 161;
+constexpr uint16_t V1_ENROLLED_FLAG = 163;
 }
 
 // EEPROM size constants
 namespace EEPROM_SIZES {
-constexpr uint16_t TOTAL_SIZE = 256;
+constexpr uint16_t TOTAL_SIZE = 512;
 constexpr uint8_t MESH_KEY_SIZE = 16;
 constexpr uint8_t MAX_PEERS = 10;
 constexpr uint8_t PEER_MAC_SIZE = 6;
-constexpr uint16_t PEER_LIST_SIZE = MAX_PEERS * PEER_MAC_SIZE;
+constexpr uint8_t PEER_PUBLIC_KEY_SIZE = 32;
+constexpr uint8_t PEER_RECORD_SIZE = PEER_MAC_SIZE + PEER_PUBLIC_KEY_SIZE;  // 38 bytes
+constexpr uint16_t PEER_LIST_SIZE = MAX_PEERS * PEER_RECORD_SIZE;           // 380 bytes
 }
 
 class EEPROM_Manager {
@@ -69,9 +93,9 @@ public:
   bool loadMeshKey(uint8_t* key, size_t keySize);
   void saveMeshKey(const uint8_t* key, size_t keySize);
 
-  // Peer list operations
-  bool loadPeerList(uint8_t* peerList, size_t maxPeers);
-  void savePeerList(const uint8_t* peerList, size_t numPeers);
+  // Peer list operations — each record is PEER_RECORD_SIZE bytes (6 MAC + 32 public key)
+  bool loadPeerList(uint8_t* peerRecords, size_t maxPeers);
+  void savePeerList(const uint8_t* peerRecords, size_t numPeers);
   bool hasPeers();
   void clearPeerList();
 

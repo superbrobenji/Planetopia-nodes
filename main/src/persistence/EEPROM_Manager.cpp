@@ -45,14 +45,59 @@ bool EEPROM_Manager::init() {
   if (!beginEEPROM()) return false;
   isInitialized = true;
 
-  // Migrate new WDT tracking bytes — set to known-good on first boot with this firmware
-  if (EEPROM.read(EEPROM_ADDRESSES::REBOOT_REASON) == 0x00) {  // 0x00 = uninitialised (was reserved)
-    EEPROM.write(EEPROM_ADDRESSES::REBOOT_REASON, 0xFF);  // 0xFF = no prior reset reason
+  // --- v1→v2 migration ---
+  // Detect if old addresses still hold valid data (v1 layout used TOTAL_SIZE=256).
+  // Migration strategy:
+  //   1. Copy reboot tracking bytes from old addresses (92, 93) to new (412, 413).
+  //   2. Copy keypair + CRC + enrolled flag from old addresses to new ones.
+  //   3. Wipe old addresses so they don't interfere.
+  //   4. Clear peer list (old records were 6-byte MAC only; new format is 38 bytes).
+  //      Peers will be re-added at runtime via discovery/re-enrollment.
+  //
+  // Migration guard: new REBOOT_REASON at 412 should be 0x00 (unwritten) on a fresh
+  // flash.  Old REBOOT_REASON at 92 was always 0xFF (cleared) or a valid reason byte.
+  bool needsMigration = (EEPROM.read(EEPROM_ADDRESSES::REBOOT_REASON) == 0x00);
+  if (needsMigration) {
+    Logger::logln("EEPROM", "v1→v2 layout migration detected, migrating...", LogLevel::LOG_INFO);
+
+    // Migrate reboot tracking
+    uint8_t oldReason = EEPROM.read(EEPROM_ADDRESSES::V1_REBOOT_REASON);
+    uint8_t oldCount  = EEPROM.read(EEPROM_ADDRESSES::V1_REBOOT_COUNT);
+    EEPROM.write(EEPROM_ADDRESSES::REBOOT_REASON, (oldReason == 0x00) ? 0xFF : oldReason);
+    EEPROM.write(EEPROM_ADDRESSES::REBOOT_COUNT,  (oldCount  > 10)    ? 0    : oldCount);
+
+    // Migrate keypair (private key, public key, CRC, enrolled flag)
+    for (int i = 0; i < 32; ++i) {
+      EEPROM.write(EEPROM_ADDRESSES::PRIVATE_KEY + i, EEPROM.read(EEPROM_ADDRESSES::V1_PRIVATE_KEY + i));
+      EEPROM.write(EEPROM_ADDRESSES::PUBLIC_KEY  + i, EEPROM.read(EEPROM_ADDRESSES::V1_PUBLIC_KEY  + i));
+    }
+    EEPROM.write(EEPROM_ADDRESSES::KEYPAIR_CRC,     EEPROM.read(EEPROM_ADDRESSES::V1_KEYPAIR_CRC));
+    EEPROM.write(EEPROM_ADDRESSES::KEYPAIR_CRC + 1, EEPROM.read(EEPROM_ADDRESSES::V1_KEYPAIR_CRC + 1));
+    EEPROM.write(EEPROM_ADDRESSES::ENROLLED_FLAG,   EEPROM.read(EEPROM_ADDRESSES::V1_ENROLLED_FLAG));
+
+    // Wipe old addresses (now overlapped by new PEER_LIST range 32..411)
+    // Only wipe 92..163 to avoid touching MESH_KEY (16..31) and MASTER/DEV flags (0,1).
+    for (uint16_t addr = 92; addr <= 163; ++addr) {
+      EEPROM.write(addr, 0xFF);
+    }
+
+    // Wipe full peer list region so stale 6-byte MAC records don't pollute 38-byte reads
+    for (uint16_t i = 0; i < EEPROM_SIZES::PEER_LIST_SIZE; ++i) {
+      EEPROM.write(EEPROM_ADDRESSES::PEER_LIST + i, 0xFF);
+    }
+
+    EEPROM.commit();
+    Logger::logln("EEPROM", "v1→v2 migration complete", LogLevel::LOG_INFO);
+  } else {
+    // Normal boot: validate WDT tracking bytes
+    if (EEPROM.read(EEPROM_ADDRESSES::REBOOT_REASON) == 0x00) {
+      EEPROM.write(EEPROM_ADDRESSES::REBOOT_REASON, 0xFF);
+    }
+    if (EEPROM.read(EEPROM_ADDRESSES::REBOOT_COUNT) > 10) {
+      EEPROM.write(EEPROM_ADDRESSES::REBOOT_COUNT, 0);
+    }
+    EEPROM.commit();
   }
-  if (EEPROM.read(EEPROM_ADDRESSES::REBOOT_COUNT) > 10) {  // Suspiciously high = garbage
-    EEPROM.write(EEPROM_ADDRESSES::REBOOT_COUNT, 0);
-  }
-  EEPROM.commit();
 
   logOperation("Initialized", "EEPROM ready");
   return true;
@@ -161,23 +206,24 @@ void EEPROM_Manager::saveMeshKey(const uint8_t* key, size_t keySize) {
 }
 
 // Peer list operations
-bool EEPROM_Manager::loadPeerList(uint8_t* peerList, size_t maxPeers) {
-  planetopia::err::check(peerList != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR, "loadPeerList: peerList null");
+// Each peer record is PEER_RECORD_SIZE (38) bytes: 6-byte MAC + 32-byte Curve25519 public key.
+bool EEPROM_Manager::loadPeerList(uint8_t* peerRecords, size_t maxPeers) {
+  planetopia::err::check(peerRecords != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR, "loadPeerList: peerRecords null");
   if (!ensureInitialized()) return false;
   if (maxPeers > EEPROM_SIZES::MAX_PEERS) {
     Logger::logln("EEPROM", "Requested peer count exceeds maximum", LogLevel::LOG_ERROR);
     return false;
   }
 
-  for (int i = 0; i < maxPeers * EEPROM_SIZES::PEER_MAC_SIZE; ++i) {
-    peerList[i] = EEPROM.read(EEPROM_ADDRESSES::PEER_LIST + i);
+  for (int i = 0; i < static_cast<int>(maxPeers * EEPROM_SIZES::PEER_RECORD_SIZE); ++i) {
+    peerRecords[i] = EEPROM.read(EEPROM_ADDRESSES::PEER_LIST + i);
   }
   logOperation("Peer list loaded", String(maxPeers).c_str());
   return true;
 }
 
-void EEPROM_Manager::savePeerList(const uint8_t* peerList, size_t numPeers) {
-  planetopia::err::check(peerList != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR, "savePeerList: peerList null");
+void EEPROM_Manager::savePeerList(const uint8_t* peerRecords, size_t numPeers) {
+  planetopia::err::check(peerRecords != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR, "savePeerList: peerRecords null");
   if (!ensureInitialized()) return;
   if (numPeers > EEPROM_SIZES::MAX_PEERS) {
     Logger::logln("EEPROM", "Peer count exceeds maximum", LogLevel::LOG_ERROR);
@@ -193,8 +239,8 @@ void EEPROM_Manager::savePeerList(const uint8_t* peerList, size_t numPeers) {
   for (int i = 0; i < EEPROM_SIZES::PEER_LIST_SIZE; ++i) {
     EEPROM.write(EEPROM_ADDRESSES::PEER_LIST + i, 0xFF);
   }
-  for (int i = 0; i < static_cast<int>(numPeers * EEPROM_SIZES::PEER_MAC_SIZE); ++i) {
-    EEPROM.write(EEPROM_ADDRESSES::PEER_LIST + i, peerList[i]);
+  for (int i = 0; i < static_cast<int>(numPeers * EEPROM_SIZES::PEER_RECORD_SIZE); ++i) {
+    EEPROM.write(EEPROM_ADDRESSES::PEER_LIST + i, peerRecords[i]);
   }
   EEPROM.commit();  // Single commit — atomic from power-loss perspective
   logOperation("Peer list saved", String(numPeers).c_str());

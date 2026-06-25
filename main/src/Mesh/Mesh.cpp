@@ -12,6 +12,7 @@
 #include <mbedtls/entropy.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/ecp.h>
+#include <mbedtls/sha256.h>
 
 namespace planetopia {
 namespace mesh {
@@ -22,13 +23,72 @@ Mesh* Mesh::instance = nullptr;
 
 // no longer need macEquals helper – use MacAddress equality directly
 
-static void registerPeerWithEspNow(const uint8_t mac[6], const uint8_t* lmk) {
+// Derive a 16-byte LMK for a peer using ECDH + SHA256.
+// LMK = SHA256(ECDH_shared_secret || "planetopia-lmk")[0:16]
+static void derivePeerLMK(const uint8_t* ownPrivateKey32, const uint8_t* peerPublicKey32, uint8_t* lmk16Out) {
+  mbedtls_ecdh_context ecdh;
+  mbedtls_entropy_context entropy;
+  mbedtls_ctr_drbg_context ctr_drbg;
+  mbedtls_ecdh_init(&ecdh);
+  mbedtls_entropy_init(&entropy);
+  mbedtls_ctr_drbg_init(&ctr_drbg);
+
+  const char* pers = "planetopia_ecdh";
+  mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
+                         reinterpret_cast<const uint8_t*>(pers), strlen(pers));
+  mbedtls_ecdh_setup(&ecdh, MBEDTLS_ECP_DP_CURVE25519);
+
+  // Load own private key and peer public key (X coordinate only for Curve25519)
+  mbedtls_mpi_read_binary(&ecdh.MBEDTLS_PRIVATE(ctx).MBEDTLS_PRIVATE(mbed_ecdh).MBEDTLS_PRIVATE(d),
+                           ownPrivateKey32, 32);
+  mbedtls_mpi_read_binary(&ecdh.MBEDTLS_PRIVATE(ctx).MBEDTLS_PRIVATE(mbed_ecdh).MBEDTLS_PRIVATE(Qp).MBEDTLS_PRIVATE(X),
+                           peerPublicKey32, 32);
+  mbedtls_mpi_lset(&ecdh.MBEDTLS_PRIVATE(ctx).MBEDTLS_PRIVATE(mbed_ecdh).MBEDTLS_PRIVATE(Qp).MBEDTLS_PRIVATE(Z), 1);
+
+  uint8_t sharedSecret[32] = {};
+  size_t outLen = 0;
+  mbedtls_ecdh_calc_secret(&ecdh, &outLen, sharedSecret, sizeof(sharedSecret),
+                            mbedtls_ctr_drbg_random, &ctr_drbg);
+
+  mbedtls_ecdh_free(&ecdh);
+  mbedtls_ctr_drbg_free(&ctr_drbg);
+  mbedtls_entropy_free(&entropy);
+
+  // KDF: SHA256(sharedSecret || "planetopia-lmk"), take first 16 bytes
+  mbedtls_sha256_context sha;
+  mbedtls_sha256_init(&sha);
+  mbedtls_sha256_starts(&sha, 0);  // 0 = SHA-256, not SHA-224
+  mbedtls_sha256_update(&sha, sharedSecret, 32);
+  const uint8_t label[] = "planetopia-lmk";
+  mbedtls_sha256_update(&sha, label, sizeof(label) - 1);
+  uint8_t digest[32];
+  mbedtls_sha256_finish(&sha, digest);
+  mbedtls_sha256_free(&sha);
+
+  memcpy(lmk16Out, digest, 16);
+}
+
+static void registerPeerWithEspNow(const uint8_t mac[6], const uint8_t* ownPrivateKey32, const uint8_t* peerPublicKey32) {
   if (esp_now_is_peer_exist(mac)) return;
+  uint8_t lmk[16];
+  bool hasPublicKey = false;
+  if (peerPublicKey32) {
+    // Check that public key is not all-zero (unset)
+    for (int i = 0; i < 32; ++i) {
+      if (peerPublicKey32[i] != 0x00) { hasPublicKey = true; break; }
+    }
+  }
+  if (hasPublicKey && ownPrivateKey32) {
+    derivePeerLMK(ownPrivateKey32, peerPublicKey32, lmk);
+  } else {
+    // Peer public key not yet known (pre-enrollment) — no encryption
+    memset(lmk, 0, 16);
+  }
   esp_now_peer_info_t info = {};
   memcpy(info.peer_addr, mac, 6);
   info.channel = 0;
-  info.encrypt = true;
-  memcpy(info.lmk, lmk, 16);
+  info.encrypt = hasPublicKey;
+  if (hasPublicKey) memcpy(info.lmk, lmk, 16);
   planetopia::err::checkEsp(esp_now_add_peer(&info), planetopia::utils::ErrorType::COMMUNICATION_FAIL, "registerPeerWithEspNow: add_peer failed");
 }
 
@@ -86,20 +146,22 @@ void Mesh::printMeshMessage(const mesh_message& msg) {
 void Mesh::loadPeersFromEEPROM() {
   peerMacs.clear();
 
-  uint8_t peerList[EEPROM_SIZES::MAX_PEERS * EEPROM_SIZES::PEER_MAC_SIZE];
-  bool eepromOk = EEPROM_Manager::getInstance().loadPeerList(peerList, EEPROM_SIZES::MAX_PEERS);
+  // Each record is PEER_RECORD_SIZE (38) bytes: 6 MAC + 32 public key
+  uint8_t peerRecords[EEPROM_SIZES::MAX_PEERS * EEPROM_SIZES::PEER_RECORD_SIZE];
+  bool eepromOk = EEPROM_Manager::getInstance().loadPeerList(peerRecords, EEPROM_SIZES::MAX_PEERS);
 
   if (eepromOk) {
     for (int i = 0; i < EEPROM_SIZES::MAX_PEERS; ++i) {
-      bool valid = true;
-      uint8_t mac[6];
+      const uint8_t* record = peerRecords + (i * EEPROM_SIZES::PEER_RECORD_SIZE);
+      // Treat all-0xFF MAC as empty slot
+      bool valid = false;
       for (int j = 0; j < 6; ++j) {
-        mac[j] = peerList[i * 6 + j];
-        if (mac[j] == 0xFF) valid = false;  // treat 0xFF as empty
+        if (record[j] != 0xFF) { valid = true; break; }
       }
       if (valid) {
         PeerInfo peer;
-        memcpy(peer.mac, mac, 6);
+        memcpy(peer.mac, record, 6);
+        memcpy(peer.publicKey, record + 6, 32);
         peer.lastSeenMillis = 0;
         peerMacs.push_back(peer);
       }
@@ -112,6 +174,7 @@ void Mesh::loadPeersFromEEPROM() {
     for (int i = 0; i < planetopia::config::NUM_DEFAULT_PEERS; ++i) {
       PeerInfo peer;
       memcpy(peer.mac, planetopia::config::DEFAULT_PEERS[i], 6);
+      memset(peer.publicKey, 0, 32);  // Public key not known yet for config defaults
       peer.lastSeenMillis = 0;
       peerMacs.push_back(peer);
     }
@@ -119,17 +182,17 @@ void Mesh::loadPeersFromEEPROM() {
 }
 
 void Mesh::savePeersToEEPROM() {
-  // Convert peer list to flat array for EEPROM_Manager
-  uint8_t peerList[EEPROM_SIZES::MAX_PEERS * EEPROM_SIZES::PEER_MAC_SIZE];
-  memset(peerList, 0xFF, sizeof(peerList));  // Initialize with 0xFF
+  // Each record is PEER_RECORD_SIZE (38) bytes: 6 MAC + 32 public key
+  uint8_t peerRecords[EEPROM_SIZES::MAX_PEERS * EEPROM_SIZES::PEER_RECORD_SIZE];
+  memset(peerRecords, 0xFF, sizeof(peerRecords));
 
   for (size_t i = 0; i < peerMacs.size() && i < EEPROM_SIZES::MAX_PEERS; ++i) {
-    for (int j = 0; j < 6; ++j) {
-      peerList[i * 6 + j] = peerMacs[i].mac[j];
-    }
+    uint8_t* record = peerRecords + (i * EEPROM_SIZES::PEER_RECORD_SIZE);
+    memcpy(record, peerMacs[i].mac, 6);
+    memcpy(record + 6, peerMacs[i].publicKey, 32);
   }
 
-  EEPROM_Manager::getInstance().savePeerList(peerList, peerMacs.size());
+  EEPROM_Manager::getInstance().savePeerList(peerRecords, peerMacs.size());
 }
 
 void Mesh::addPeerToEEPROM(const uint8_t mac[6]) {
@@ -145,10 +208,11 @@ void Mesh::addPeerToEEPROM(const uint8_t mac[6]) {
 
   PeerInfo peer;
   memcpy(peer.mac, mac, 6);
+  memset(peer.publicKey, 0, 32);  // Public key unknown until enrollment
   peer.lastSeenMillis = millis();
   peerMacs.push_back(peer);
   savePeersToEEPROM();
-  registerPeerWithEspNow(peer.mac, meshKey);  // This is the only call needed
+  registerPeerWithEspNow(peer.mac, devicePrivateKey, peer.publicKey);
   Logger::logln("MESH", "Peer added", LogLevel::LOG_DEBUG);
 }
 
@@ -309,7 +373,7 @@ bool Mesh::setupEspNow() {
   }
   esp_now_set_pmk(meshKey);
   for (auto& p : peerMacs) {
-    registerPeerWithEspNow(p.mac, meshKey);
+    registerPeerWithEspNow(p.mac, devicePrivateKey, p.publicKey);
   }
   esp_now_register_send_cb(onDataSentCallback);
   esp_now_register_recv_cb(Mesh::dataRecvTrampoline);
@@ -468,10 +532,11 @@ void Mesh::addPeer(const uint8_t mac[6]) {
     }
     PeerInfo p;
     memcpy(p.mac, mac, 6);
+    memset(p.publicKey, 0, 32);  // Public key unknown until enrollment
     p.lastSeenMillis = 0;
     peerMacs.push_back(p);
     savePeersToEEPROM();
-    registerPeerWithEspNow(p.mac, meshKey);
+    registerPeerWithEspNow(p.mac, devicePrivateKey, p.publicKey);
   }
 }
 void Mesh::removePeer(const uint8_t mac[6]) {

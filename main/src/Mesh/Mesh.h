@@ -39,6 +39,7 @@ struct mesh_message {
 // Peer info struct for RAM and EEPROM storage
 struct PeerInfo {
   uint8_t mac[6];
+  uint8_t publicKey[32];   // Curve25519 public key (zero = not yet known)
   uint32_t lastSeenMillis;
 };
 
