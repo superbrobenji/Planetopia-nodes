@@ -18,11 +18,13 @@ typedef struct _mesh_MeshMessage {
     pb_byte_t originMacAddress[6];
     pb_byte_t targetMacAddress[6];
     pb_byte_t lastHopMacAddress[6];
+    bool has_data;
     mesh_MeshMessage_data_t data;
     uint32_t hopCount;
     uint32_t epochNum;
     uint32_t seqNum;
     uint32_t protoVersion;
+    bool has_public_key;
     mesh_MeshMessage_public_key_t public_key;
 } mesh_MeshMessage;
 
@@ -32,8 +34,8 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define mesh_MeshMessage_init_default            {0, 0, {0}, {0}, {0}, {0, {0}}, 0, 0, 0, 0, {0, {0}}}
-#define mesh_MeshMessage_init_zero               {0, 0, {0}, {0}, {0}, {0, {0}}, 0, 0, 0, 0, {0, {0}}}
+#define mesh_MeshMessage_init_default            {0, 0, {0}, {0}, {0}, false, {0, {0}}, 0, 0, 0, 0, false, {0, {0}}}
+#define mesh_MeshMessage_init_zero               {0, 0, {0}, {0}, {0}, false, {0, {0}}, 0, 0, 0, 0, false, {0, {0}}}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define mesh_MeshMessage_messageType_tag         1
@@ -55,12 +57,12 @@ X(a, STATIC,   SINGULAR, SINT32,   dataType,          2) \
 X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, originMacAddress,   3) \
 X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, targetMacAddress,   4) \
 X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, lastHopMacAddress,   5) \
-X(a, STATIC,   SINGULAR, BYTES,    data,              6) \
+X(a, STATIC,   OPTIONAL, BYTES,    data,              6) \
 X(a, STATIC,   SINGULAR, UINT32,   hopCount,          7) \
 X(a, STATIC,   SINGULAR, UINT32,   epochNum,          8) \
 X(a, STATIC,   SINGULAR, UINT32,   seqNum,            9) \
 X(a, STATIC,   SINGULAR, UINT32,   protoVersion,     10) \
-X(a, STATIC,   SINGULAR, BYTES,    public_key,       11)
+X(a, STATIC,   OPTIONAL, BYTES,    public_key,       11)
 #define mesh_MeshMessage_CALLBACK NULL
 #define mesh_MeshMessage_DEFAULT NULL
 

@@ -7,10 +7,10 @@ message MeshMessage {
   bytes  originMacAddress  = 3;
   bytes  targetMacAddress  = 4;
   bytes  lastHopMacAddress = 5;
-  bytes  data              = 6;
+  optional bytes  data              = 6;
   uint32 hopCount          = 7;
   uint32 epochNum          = 8;
   uint32 seqNum            = 9;
   uint32 protoVersion      = 10;
-  bytes  public_key        = 11;
+  optional bytes  public_key        = 11;
 }
