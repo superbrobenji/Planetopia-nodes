@@ -488,6 +488,12 @@ void Mesh::updatePeerLastSeen(const esp_now_recv_info* info) {
 }
 
 void Mesh::processMasterBeacon(const mesh_message& msg) {
+  // Guard: drop beacon if hop count would overflow uint8_t or exceed limit
+  if (msg.hopCount >= planetopia::config::MAX_HOPS) {
+    Logger::logln("MESH", "Beacon hop count exceeded MAX_HOPS, dropping relay", LogLevel::LOG_WARN);
+    return;
+  }
+
   if (planetopia::utils::MacAddress(lastSeenMasterMac) != planetopia::utils::MacAddress(msg.originMacAddress) && lastSeenMasterMac[0] != 0) {
     Logger::logln("MESH", "WARNING: Multiple masters detected!", LogLevel::LOG_WARN);
     planetopia::err::fail(planetopia::core::ErrorTypeDigit::CONFIG,

@@ -283,6 +283,12 @@ void setup() {
 
   if (!mesh.init()) {
     Logger::logln("MAIN", "Mesh init failed", LogLevel::LOG_ERROR);
+    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::COMM,
+                          planetopia::core::ModuleDigit::MESH,
+                          1,
+                          "MAIN: Mesh init failed — cannot operate without mesh");
+    // fatal() is [[noreturn]], so the while(true) below is never reached
+    while (true) { delay(1000); }
   }
   mesh.debugDumpRadio();
   bool isMaster;
@@ -368,10 +374,6 @@ void loop() {
   } else {
     resetButtonWasPressed = false;
   }
-  // Periodic health report
-  static unsigned long lastHealth = 0;
-  if (millis() - lastHealth > 5000) {
-    lastHealth = millis();
-    sendHealthReport();
-  }
+  // REMOVED: periodic health report was here.
+  // Serial_Adapter::loop() handles this correctly when adapter type is SERIAL_ADAPTER.
 }
