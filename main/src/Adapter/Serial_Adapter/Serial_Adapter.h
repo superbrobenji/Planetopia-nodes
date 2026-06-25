@@ -2,6 +2,10 @@
 #define SERIAL_ADAPTER_H
 
 #include "src/Adapter/Adapter.h"
+#include "src/Mesh/serialization/nanopb/pb.h"
+#include "src/Mesh/serialization/nanopb/pb_encode.h"
+#include "src/Mesh/serialization/nanopb/pb_decode.h"
+#include "src/Mesh/serialization/mesh.pb.h"
 
 namespace planetopia {
 namespace adapter {
@@ -19,10 +23,6 @@ public:
   static constexpr uint8_t OP_TX_POWER_SET     = 0xA1;  // [A1][1B preset: 0=short 1=indoor 2=outdoor]
   static constexpr uint8_t OP_HEALTH_REQ       = 0xB0;  // [B0]
   static constexpr uint8_t OP_HEALTH_REPORT    = 0xB1;  // [B1][1B adapterType][6B mac][4B uptime]
-  static constexpr uint8_t OP_ENROLLMENT_REQ    = 0xC0;  // [C0][6B mac][32B pubkey] node→server
-  static constexpr uint8_t OP_ENROLLMENT_APPROVE = 0xC1; // [C1][6B mac][32B pubkey] server→node
-  static constexpr uint8_t OP_ENROLLMENT_REJECT  = 0xC2; // [C2][6B mac] server→node
-
   // Relay a completed enrollment public key to the server over serial
   static void relayEnrollmentToServer(const uint8_t mac[6], const uint8_t pubKey[32]);
 
@@ -44,26 +44,13 @@ private:
   static constexpr size_t MAX_PAYLOAD = 256;
   uint8_t payloadBuffer[MAX_PAYLOAD];
 
-  // Encode/decode MeshMessage as Protobuf (hand-rolled minimal encoder)
-  static size_t writeVarint(uint8_t* out, uint32_t value);
-  static size_t writeZigZag32(uint8_t* out, int32_t value);
-  static size_t writeKey(uint8_t* out, uint32_t fieldNumber, uint8_t wireType);
-  static size_t writeBytesField(uint8_t* out, uint32_t fieldNumber, const uint8_t* data, size_t len);
-  static size_t writeSint32Field(uint8_t* out, uint32_t fieldNumber, int32_t value);
-  static size_t writeUint32Field(uint8_t* out, uint32_t fieldNumber, uint32_t value);
-
-  static bool readVarint(const uint8_t*& ptr, const uint8_t* end, uint32_t& out);
-  static bool readZigZag32(const uint8_t*& ptr, const uint8_t* end, int32_t& out);
-  static bool readKey(const uint8_t*& ptr, const uint8_t* end, uint32_t& fieldNumber, uint8_t& wireType);
-  static bool readLengthDelimited(const uint8_t*& ptr, const uint8_t* end, const uint8_t*& dataPtr, size_t& dataLen);
-
-  size_t encodeMeshMessage(const planetopia::mesh::mesh_message& msg, uint8_t* out, size_t outCap);
-  bool decodeMeshMessage(const uint8_t* data, size_t len, planetopia::mesh::mesh_message& outMsg);
+  static size_t encodeMeshMessage(const planetopia::mesh::mesh_message& msg, uint8_t* out, size_t outCap);
+  static bool decodeMeshMessage(const uint8_t* data, size_t len, planetopia::mesh::mesh_message& outMsg);
   void handleCompleteFrame(const uint8_t* data, size_t len);
-  // Interpret messageType for Serial control:
-  // messageType == 0 (ADAPTER_DATA): targeted send via normal mesh transmit (to master)
-  // messageType == 3 (SERIAL_MSG_BROADCAST): broadcast adapter data via mesh
-  static constexpr uint32_t SERIAL_MSG_BROADCAST = 3;
+  // Interpret messageType for Serial control (uses planetopia::mesh::MeshMessageType):
+  // MESH_TYPE_ADAPTER_DATA (0)         : targeted send via normal mesh transmit (to master)
+  // MESH_TYPE_SERIAL_CMD_BROADCAST (3) : broadcast adapter data via mesh (server→device)
+  // MESH_TYPE_JOIN_ACK (4)             : server approved or rejected enrollment (server→device)
 
   // Health reporter
   static void sendHealthReport();
