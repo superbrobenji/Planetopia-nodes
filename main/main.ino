@@ -245,11 +245,18 @@ void setup() {
   // Validate configuration for potential server communication issues
   validateServerConfiguration();
   
-  greenLed.blink(2, 200, 200);
-  redLed.blink(2, 200, 200);
 }
 
 void loop() {
+  planetopia::utils::ErrorCore::getInstance().drainPendingBlink();
+
+  static bool startupBlinkDone = false;
+  if (!startupBlinkDone) {
+    startupBlinkDone = true;
+    greenLed.blink(2, 200, 200);
+    redLed.blink(2, 200, 200);
+  }
+
   if (mesh.getIsMaster()) {
     mesh.broadcastMasterBeacon();
   }

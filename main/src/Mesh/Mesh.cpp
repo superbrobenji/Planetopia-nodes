@@ -291,7 +291,9 @@ void Mesh::onDataRecvCallback(const esp_now_recv_info* info, const uint8_t* inco
 
 void Mesh::dataRecvTrampoline(const esp_now_recv_info* mac_addr, const uint8_t* data, int len) {
   if (instance) {
+    planetopia::utils::ErrorCore::getInstance().setCallbackContext(true);
     instance->onDataRecvCallback(mac_addr, data, len);
+    planetopia::utils::ErrorCore::getInstance().setCallbackContext(false);
   }
 }
 

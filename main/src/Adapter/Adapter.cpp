@@ -57,7 +57,6 @@ void Adapter::onMeshData(const planetopia::mesh::mesh_message& message) {
         adapter_types newType = static_cast<adapter_types>(static_cast<int8_t>(message.data[7]));
         planetopia::adapter::AdapterFactory::saveAdapterTypeToEEPROM(newType);
         Logger::logln("ADAPTER", "CONFIG_SET received, restarting with new adapter type", LogLevel::LOG_INFO);
-        delay(500);
         ESP.restart();
       } else {
         Logger::logln("ADAPTER", "CONFIG_SET not targeted to this node, ignoring", LogLevel::LOG_DEBUG);
