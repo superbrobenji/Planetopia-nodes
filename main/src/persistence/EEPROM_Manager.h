@@ -9,7 +9,7 @@ namespace planetopia {
 namespace utils {
 
 // EEPROM address constants - centralized in one place
-// Layout (v4 — added KNOWN_MASTER_MAC for TOFU master authentication):
+// Layout (v2 — Tasks 10-11 restructured keypair/reboot tracking; Task 18 adds formal versioning):
 //   0   MASTER_FLAG      (1 byte)
 //   1   DEV_FLAG         (1 byte)
 //   8   ADAPTER_TYPE     (1 byte)
@@ -24,7 +24,8 @@ namespace utils {
 // 483   ENROLLED_FLAG    (1 byte)
 // 484   BOOT_EPOCH       (4 bytes, ends 487) — boot count for replay protection
 // 488   KNOWN_MASTER_MAC (6 bytes, ends 493) — TOFU master MAC (0xFF×6 = unset)
-// Total used: 494 bytes — fits in 512
+// 494   SCHEMA_VERSION   (1 byte) — EEPROM layout version for migration gating
+// Total used: 495 bytes — fits in 512
 namespace EEPROM_ADDRESSES {
 constexpr uint16_t MASTER_FLAG = 0;      // Master flag (1 byte)
 constexpr uint16_t DEV_FLAG = 1;         // Dev mode flag (1 byte)
@@ -40,6 +41,7 @@ constexpr uint16_t KEYPAIR_CRC   = 481;  // 2 bytes: CRC16 over private+public k
 constexpr uint16_t ENROLLED_FLAG = 483;  // 1 byte: 0x01 = enrolled, 0xFF = not enrolled
 constexpr uint16_t BOOT_EPOCH       = 484;  // 4 bytes: boot count for replay protection (ends 487)
 constexpr uint16_t KNOWN_MASTER_MAC = 488;  // 6 bytes: TOFU master MAC (0xFF×6 = unset, ends 493)
+constexpr uint16_t SCHEMA_VERSION   = 494;  // 1 byte: EEPROM layout version for migration gating
 
 // Old v1 addresses (used only during migration in EEPROM_Manager::init())
 constexpr uint16_t V1_REBOOT_REASON = 92;
@@ -59,6 +61,7 @@ constexpr uint8_t PEER_MAC_SIZE = 6;
 constexpr uint8_t PEER_PUBLIC_KEY_SIZE = 32;
 constexpr uint8_t PEER_RECORD_SIZE = PEER_MAC_SIZE + PEER_PUBLIC_KEY_SIZE;  // 38 bytes
 constexpr uint16_t PEER_LIST_SIZE = MAX_PEERS * PEER_RECORD_SIZE;           // 380 bytes
+constexpr uint8_t CURRENT_SCHEMA_VERSION = 2;                              // Current EEPROM schema version
 }
 
 class EEPROM_Manager {
