@@ -44,6 +44,16 @@ bool EEPROM_Manager::init() {
   if (isInitialized) return true;
   if (!beginEEPROM()) return false;
   isInitialized = true;
+
+  // Migrate new WDT tracking bytes — set to known-good on first boot with this firmware
+  if (EEPROM.read(EEPROM_ADDRESSES::REBOOT_REASON) == 0x00) {  // 0x00 = uninitialised (was reserved)
+    EEPROM.write(EEPROM_ADDRESSES::REBOOT_REASON, 0xFF);  // 0xFF = no prior reset reason
+  }
+  if (EEPROM.read(EEPROM_ADDRESSES::REBOOT_COUNT) > 10) {  // Suspiciously high = garbage
+    EEPROM.write(EEPROM_ADDRESSES::REBOOT_COUNT, 0);
+  }
+  EEPROM.commit();
+
   logOperation("Initialized", "EEPROM ready");
   return true;
 }

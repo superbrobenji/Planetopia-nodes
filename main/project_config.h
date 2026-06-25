@@ -26,7 +26,9 @@ constexpr bool DEFAULT_DEV_MASTER = true;
 // IMPORTANT: For server communication via USB, MUST be SERIAL_ADAPTER
 constexpr planetopia::adapter::adapter_types DEFAULT_ADAPTER = planetopia::adapter::SERIAL_ADAPTER;
 // Primary mesh-beacon interval (milliseconds)
-constexpr unsigned long MASTER_BEACON_INTERVAL_MS = 2000;
+constexpr unsigned long MASTER_BEACON_INTERVAL_MS = 3000;
+// Stale-master threshold: node clears master route after this many ms without a beacon (3× interval)
+constexpr uint32_t STALE_MASTER_THRESHOLD_MS = 9000;
 
 // =====================
 // 3. Radio / ESP-NOW

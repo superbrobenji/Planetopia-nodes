@@ -482,7 +482,7 @@ void Mesh::debugDumpRadio() {
 void Mesh::checkMasterTimeout() {
   if (isMaster) return;
   if (currentMaster.distance == 0xFF) return;  // No master known yet
-  if (millis() - lastMasterBeaconReceivedMs > MASTER_TIMEOUT_MS) {
+  if (millis() - lastMasterBeaconReceivedMs > STALE_MASTER_THRESHOLD_MS) {
     Logger::logln("MESH", "Master beacon timeout — clearing route, treating as offline", LogLevel::LOG_WARN);
     memset(currentMaster.mac, 0, 6);
     currentMaster.distance = 0xFF;

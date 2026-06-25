@@ -94,15 +94,15 @@ void setup() {
     // EEPROM not yet inited here — init it early just for this check
     em.init();
     em.saveRebootReason(static_cast<uint8_t>(reason));
-    if (reason == ESP_RST_TASK_WDT || reason == ESP_RST_INT_WDT || reason == ESP_RST_WDT) {
+    if (reason == ESP_RST_WDT || reason == ESP_RST_TASK_WDT || reason == ESP_RST_INT_WDT) {
       uint8_t count = em.loadRebootCount();
-      count = (count == 0xFF) ? 1 : count + 1;
+      count++;
       em.saveRebootCount(count);
-      Logger::logln("MAIN", String("WARNING: WDT reset #") + count, LogLevel::LOG_WARN);
+      Serial.printf("[BOOT] WDT reset #%d (reason: %d)\n", count, (int)reason);
       if (count >= 5) {
-        Logger::logln("MAIN", "5 consecutive WDT reboots — clearing state and halting", LogLevel::LOG_ERROR);
+        Serial.println("[BOOT] WDT loop detected — clearing EEPROM and halting");
         em.clearAll();
-        while (true) { delay(1000); }  // Force manual intervention
+        while (true) { delay(1000); }
       }
     } else {
       em.saveRebootCount(0);  // Clean boot resets the counter

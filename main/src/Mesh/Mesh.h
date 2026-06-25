@@ -81,7 +81,7 @@ private:
   bool isMaster;
   uint32_t lastBeaconMillis;
   uint32_t lastMasterBeaconReceivedMs;
-  static constexpr uint32_t MASTER_TIMEOUT_MS = planetopia::config::MASTER_BEACON_INTERVAL_MS * 4;
+  static constexpr uint32_t STALE_MASTER_THRESHOLD_MS = planetopia::config::STALE_MASTER_THRESHOLD_MS;
 
   // Peer EEPROM management
   void loadPeersFromEEPROM();
