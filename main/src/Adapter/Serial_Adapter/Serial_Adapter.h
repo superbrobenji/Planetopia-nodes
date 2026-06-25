@@ -16,6 +16,7 @@ public:
 
   // Serial control opcodes (shared between serial and mesh paths)
   static constexpr uint8_t OP_CONFIG_SET       = 0xA0;  // [A0][6B targetMac][1B adapterType]
+  static constexpr uint8_t OP_TX_POWER_SET     = 0xA1;  // [A1][1B preset: 0=short 1=indoor 2=outdoor]
   static constexpr uint8_t OP_HEALTH_REQ       = 0xB0;  // [B0]
   static constexpr uint8_t OP_HEALTH_REPORT    = 0xB1;  // [B1][1B adapterType][6B mac][4B uptime]
   static constexpr uint8_t OP_ENROLLMENT_REQ    = 0xC0;  // [C0][6B mac][32B pubkey] node→server

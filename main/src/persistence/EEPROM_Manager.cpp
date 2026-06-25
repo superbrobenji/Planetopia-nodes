@@ -448,6 +448,21 @@ void EEPROM_Manager::clearKnownMasterMac() {
   logOperation("Known master MAC cleared");
 }
 
+// TX power preset operations
+planetopia::config::TxPowerPreset EEPROM_Manager::loadTxPowerPreset() {
+  if (!ensureInitialized()) return planetopia::config::DEFAULT_TX_POWER_PRESET;
+  uint8_t val = EEPROM.read(EEPROM_ADDRESSES::TX_POWER_PRESET);
+  if (val > 2 || val == 0xFF) return planetopia::config::DEFAULT_TX_POWER_PRESET;
+  return static_cast<planetopia::config::TxPowerPreset>(val);
+}
+
+void EEPROM_Manager::saveTxPowerPreset(planetopia::config::TxPowerPreset preset) {
+  if (!ensureInitialized() || isDevMode) return;
+  EEPROM.write(EEPROM_ADDRESSES::TX_POWER_PRESET, static_cast<uint8_t>(preset));
+  EEPROM.commit();  // Immediate commit — deployment config must survive reboot
+  logOperation("TX power preset saved");
+}
+
 // Utility operations
 void EEPROM_Manager::clearAll() {
   if (!ensureInitialized()) return;

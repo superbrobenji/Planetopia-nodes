@@ -366,6 +366,18 @@ bool Mesh::init() {
   // 3. Configure Wi-Fi
   if (!setupWiFi()) return false;
 
+  // 3a. Apply TX power preset from EEPROM (deployment-specific)
+  {
+    planetopia::config::TxPowerPreset preset = EEPROM_Manager::getInstance().loadTxPowerPreset();
+    uint8_t txPowerVal = planetopia::config::TX_POWER_VALUES[static_cast<uint8_t>(preset)];
+    esp_err_t txErr = esp_wifi_set_max_tx_power(static_cast<int8_t>(txPowerVal));
+    if (txErr != ESP_OK) {
+      Logger::logln("MESH", String("TX power set failed: ") + esp_err_to_name(txErr), LogLevel::LOG_WARN);
+    } else {
+      Logger::logln("MESH", "TX power preset applied", LogLevel::LOG_INFO);
+    }
+  }
+
   // 4. Init ESP-NOW
   if (!setupEspNow()) return false;
 

@@ -142,6 +142,21 @@ void Serial_Adapter::onMeshDataImpl(const planetopia::mesh::mesh_message& messag
     if (op == OP_HEALTH_REQ) {
       Logger::logln("Serial_Adapter", "Received health request via mesh, sending health report", LogLevel::LOG_INFO);
       sendHealthReport();
+    } else if (op == OP_TX_POWER_SET) {
+      uint8_t presetByte = message.data[1];
+      if (presetByte > 2) {
+        Logger::logln("Serial_Adapter", "Invalid TX power preset from mesh, ignoring", LogLevel::LOG_WARN);
+      } else {
+        auto preset = static_cast<planetopia::config::TxPowerPreset>(presetByte);
+        EEPROM_Manager::getInstance().saveTxPowerPreset(preset);
+        esp_err_t txErr = esp_wifi_set_max_tx_power(
+            static_cast<int8_t>(planetopia::config::TX_POWER_VALUES[presetByte]));
+        if (txErr != ESP_OK) {
+          Logger::logln("Serial_Adapter", String("TX power set failed: ") + esp_err_to_name(txErr), LogLevel::LOG_WARN);
+        } else {
+          Logger::logln("Serial_Adapter", "TX power preset applied from mesh", LogLevel::LOG_INFO);
+        }
+      }
     }
   }
 
@@ -606,6 +621,33 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
         ESP.restart();
       } else {
         Logger::logln("Serial_Adapter", "Configuration not targeted to this node, ignoring", LogLevel::LOG_DEBUG);
+      }
+    } else if (op == OP_TX_POWER_SET) {
+      Logger::logln("Serial_Adapter", "Received TX power preset update", LogLevel::LOG_INFO);
+      uint8_t presetByte = msg.data[1];
+      if (presetByte > 2) {
+        Logger::logln("Serial_Adapter", "Invalid TX power preset, ignoring", LogLevel::LOG_WARN);
+      } else {
+        auto preset = static_cast<planetopia::config::TxPowerPreset>(presetByte);
+        EEPROM_Manager::getInstance().saveTxPowerPreset(preset);
+        esp_err_t txErr = esp_wifi_set_max_tx_power(
+            static_cast<int8_t>(planetopia::config::TX_POWER_VALUES[presetByte]));
+        if (txErr != ESP_OK) {
+          Logger::logln("Serial_Adapter", String("TX power set failed: ") + esp_err_to_name(txErr), LogLevel::LOG_WARN);
+        } else {
+          Logger::logln("Serial_Adapter", "TX power preset updated", LogLevel::LOG_INFO);
+        }
+
+        // Broadcast to all enrolled nodes so entire mesh updates
+        planetopia::mesh::Mesh* meshPtr = planetopia::mesh::Mesh::getInstance();
+        bool isMasterNode = meshPtr && meshPtr->getIsMaster();
+        if (isMasterNode) {
+          uint8_t fwdData[12] = {};
+          fwdData[0] = OP_TX_POWER_SET;
+          fwdData[1] = presetByte;
+          planetopia::mesh::Mesh::broadcastAdapterDataStatic(adapter_types::SERIAL_ADAPTER, fwdData);
+          Logger::logln("Serial_Adapter", "TX power preset broadcast to mesh", LogLevel::LOG_INFO);
+        }
       }
     } else {
       Logger::logln("Serial_Adapter", "Unknown SERIAL_ADAPTER opcode: 0x" + String(op, HEX), LogLevel::LOG_WARN);

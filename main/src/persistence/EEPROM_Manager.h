@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include "src/core/Logger.h"
+#include "../../project_config.h"
 
 namespace planetopia {
 namespace utils {
@@ -25,7 +26,8 @@ namespace utils {
 // 484   BOOT_EPOCH       (4 bytes, ends 487) — boot count for replay protection
 // 488   KNOWN_MASTER_MAC (6 bytes, ends 493) — TOFU master MAC (0xFF×6 = unset)
 // 494   SCHEMA_VERSION   (1 byte) — EEPROM layout version for migration gating
-// Total used: 495 bytes — fits in 512
+// 495   TX_POWER_PRESET  (1 byte) — TxPowerPreset enum value (0=SHORT_RANGE 1=INDOOR 2=OUTDOOR)
+// Total used: 496 bytes — fits in 512
 namespace EEPROM_ADDRESSES {
 constexpr uint16_t MASTER_FLAG = 0;      // Master flag (1 byte)
 constexpr uint16_t DEV_FLAG = 1;         // Dev mode flag (1 byte)
@@ -42,6 +44,7 @@ constexpr uint16_t ENROLLED_FLAG = 483;  // 1 byte: 0x01 = enrolled, 0xFF = not 
 constexpr uint16_t BOOT_EPOCH       = 484;  // 4 bytes: boot count for replay protection (ends 487)
 constexpr uint16_t KNOWN_MASTER_MAC = 488;  // 6 bytes: TOFU master MAC (0xFF×6 = unset, ends 493)
 constexpr uint16_t SCHEMA_VERSION   = 494;  // 1 byte: EEPROM layout version for migration gating
+constexpr uint16_t TX_POWER_PRESET  = 495;  // 1 byte: TxPowerPreset (0=SHORT_RANGE 1=INDOOR 2=OUTDOOR)
 
 // Old v1 addresses (used only during migration in EEPROM_Manager::init())
 constexpr uint16_t V1_REBOOT_REASON = 92;
@@ -139,6 +142,10 @@ public:
   bool loadKnownMasterMac(uint8_t mac[6]);
   void saveKnownMasterMac(const uint8_t mac[6]);
   void clearKnownMasterMac();
+
+  // TX power preset — deployment-specific, persisted across reboots
+  planetopia::config::TxPowerPreset loadTxPowerPreset();
+  void saveTxPowerPreset(planetopia::config::TxPowerPreset preset);
 
   // Deferred flush API
   void flushIfDirty();

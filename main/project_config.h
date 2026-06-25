@@ -76,7 +76,23 @@ constexpr int NUM_DEFAULT_PEERS = sizeof(DEFAULT_PEERS) / sizeof(DEFAULT_PEERS[0
 constexpr planetopia::utils::LogLevel DEFAULT_LOG_LEVEL = planetopia::utils::LogLevel::LOG_NONE;
 
 // =====================
-// 7. Global Limits (Tiger Style)
+// 7. TX Power Presets
+// =====================
+// Named presets — admin-friendly, no RF knowledge needed.
+// Stored in EEPROM and applied on boot.
+enum class TxPowerPreset : uint8_t {
+  SHORT_RANGE = 0,  // 2dBm  — same room
+  INDOOR      = 1,  // 14dBm — through walls, building-wide
+  OUTDOOR     = 2,  // 20dBm — outdoor, maximum range (default)
+};
+
+// Maps preset → esp_wifi_set_max_tx_power() value (units of 0.25dBm)
+static constexpr uint8_t TX_POWER_VALUES[] = { 8, 56, 80 };
+
+constexpr TxPowerPreset DEFAULT_TX_POWER_PRESET = TxPowerPreset::OUTDOOR;
+
+// =====================
+// 9. Global Limits (Tiger Style)
 // =====================
 // Maximum allowed routing hops in the mesh network
 constexpr uint8_t MAX_HOPS = 10;
