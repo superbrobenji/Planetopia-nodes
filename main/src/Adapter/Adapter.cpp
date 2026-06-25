@@ -54,7 +54,7 @@ void Adapter::onMeshData(const planetopia::mesh::mesh_message& message) {
       }
       bool isTarget = allFF || (memcmp(&message.data[1], ownMac, 6) == 0);
       if (isTarget) {
-        adapter_types newType = static_cast<adapter_types>(static_cast<int8_t>(message.data[7]));
+        adapter_types newType = planetopia::adapter::AdapterFactory::adapterTypeFromEEPROM(message.data[7]);
         planetopia::adapter::AdapterFactory::saveAdapterTypeToEEPROM(newType);
         Logger::logln("ADAPTER", "CONFIG_SET received, restarting with new adapter type", LogLevel::LOG_INFO);
         ESP.restart();

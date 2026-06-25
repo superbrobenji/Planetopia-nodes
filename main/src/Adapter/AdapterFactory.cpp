@@ -42,11 +42,11 @@ Adapter* AdapterFactory::createAdapter(adapter_types type, int pin) {
 adapter_types AdapterFactory::adapterTypeFromEEPROM(uint8_t raw) {
   // uint8_t 0xFF (unset) maps to PIR_ADAPTER default
   if (raw == 0xFF) return adapter_types::PIR_ADAPTER;
-  return static_cast<adapter_types>(static_cast<int8_t>(raw));
+  return static_cast<adapter_types>(static_cast<int32_t>(raw));
 }
 
 uint8_t AdapterFactory::adapterTypeToEEPROM(adapter_types type) {
-  return static_cast<uint8_t>(static_cast<int8_t>(type));
+  return static_cast<uint8_t>(static_cast<int32_t>(type));
 }
 
 adapter_types AdapterFactory::loadAdapterTypeFromEEPROM() {

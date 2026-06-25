@@ -22,7 +22,7 @@ void Serial_Adapter::sendHealthReport() {
 
   uint8_t data[12] = { 0 };
   data[0] = OP_HEALTH_REPORT;
-  data[1] = static_cast<uint8_t>(adapter_types::SERIAL_ADAPTER);
+  data[1] = AdapterFactory::adapterTypeToEEPROM(adapter_types::SERIAL_ADAPTER);
 
   uint8_t mac[6];
   readOwnMac(mac);
@@ -130,7 +130,7 @@ void Serial_Adapter::loop() {
 }
 
 void Serial_Adapter::onMeshDataImpl(const planetopia::mesh::mesh_message& message) {
-  Logger::logln("Serial_Adapter", "Processing incoming mesh message - Type: " + String((uint8_t)message.messageType) + " DataType: " + String(static_cast<int8_t>(message.dataType)) + " HopCount: " + String(message.hopCount), LogLevel::LOG_DEBUG);
+  Logger::logln("Serial_Adapter", "Processing incoming mesh message - Type: " + String((uint8_t)message.messageType) + " DataType: " + String(static_cast<int32_t>(message.dataType)) + " HopCount: " + String(message.hopCount), LogLevel::LOG_DEBUG);
 
   // Handle control opcodes received via mesh.
   // NOTE: OP_CONFIG_SET is now handled in Adapter::onMeshData() (base class) so it reaches
@@ -263,7 +263,7 @@ bool Serial_Adapter::readLengthDelimited(const uint8_t*& ptr, const uint8_t* end
 }
 
 size_t Serial_Adapter::encodeMeshMessage(const planetopia::mesh::mesh_message& msg, uint8_t* out, size_t outCap) {
-  Logger::logln("Serial_Adapter", "Encoding mesh message - Type: " + String((uint8_t)msg.messageType) + " DataType: " + String(static_cast<int8_t>(msg.dataType)) + " HopCount: " + String(msg.hopCount), LogLevel::LOG_DEBUG);
+  Logger::logln("Serial_Adapter", "Encoding mesh message - Type: " + String((uint8_t)msg.messageType) + " DataType: " + String(static_cast<int32_t>(msg.dataType)) + " HopCount: " + String(msg.hopCount), LogLevel::LOG_DEBUG);
 
   size_t idx = 0;
   auto ensure = [&](size_t need) {
@@ -544,7 +544,7 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
     return;
   }
 
-  Logger::logln("Serial_Adapter", "Decoded message - Type: " + String((uint8_t)msg.messageType) + " DataType: " + String(static_cast<int8_t>(msg.dataType)), LogLevel::LOG_INFO);
+  Logger::logln("Serial_Adapter", "Decoded message - Type: " + String((uint8_t)msg.messageType) + " DataType: " + String(static_cast<int32_t>(msg.dataType)), LogLevel::LOG_INFO);
 
   // Only forward adapter data via mesh transmit function; routing fields are managed by Mesh
   if (msg.messageType == planetopia::mesh::MESH_TYPE_ADAPTER_DATA) {
@@ -594,7 +594,7 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
 
       if (isTarget) {
         adapter_types newType = AdapterFactory::adapterTypeFromEEPROM(msg.data[7]);
-        Logger::logln("Serial_Adapter", "Configuration applies to this node, setting adapter type to: " + String(static_cast<int8_t>(newType)), LogLevel::LOG_INFO);
+        Logger::logln("Serial_Adapter", "Configuration applies to this node, setting adapter type to: " + String(static_cast<int32_t>(newType)), LogLevel::LOG_INFO);
 
         planetopia::adapter::AdapterFactory::saveAdapterTypeToEEPROM(newType);
         Logger::logln("Serial_Adapter", "Adapter type saved to EEPROM successfully", LogLevel::LOG_INFO);

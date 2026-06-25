@@ -14,7 +14,7 @@ namespace planetopia {
 namespace adapter {
 
 // Enum for identifying adapter types
-enum class adapter_types : int8_t {
+enum class adapter_types : int32_t {
   UNKNOWN_ADAPTER = -1,
   PIR_ADAPTER = 0,
   WIFI_ADAPTER = 1,
