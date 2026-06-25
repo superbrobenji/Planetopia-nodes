@@ -2,13 +2,15 @@
 #include "src/Adapter/AdapterFactory.h"
 #include "src/core/Logger.h"
 #include "src/hardware/output/Led.h"
+#include "src/hardware/output/SevenSegDisplay.h"
 #include "src/hardware/input/Button.h"
 #include "src/error/Error.h"
 #include "src/error/ErrorCore.h"
 #include "src/persistence/EEPROM_Manager.h"
 #include "project_config.h"
-#include <esp_task_wdt.h>
+#include <esp_wifi.h>
 #include <memory>
+#include <esp_task_wdt.h>
 
 constexpr unsigned long MASTER_BEACON_INTERVAL_MS = planetopia::config::MASTER_BEACON_INTERVAL_MS;
 
@@ -32,9 +34,6 @@ Led greenLed(GREEN_LED_PIN);
 Led redLed(RED_LED_PIN);
 Button configButton(CONFIG_BUTTON_PIN);
 Button resetButton(RESET_BUTTON_PIN);  // New reset button object
-
-#include "src/hardware/output/SevenSegDisplay.h"
-using planetopia::hardware::SevenSegDisplay;
 
 SevenSegDisplay sevenSeg(planetopia::config::SEVSEG_DATA_PIN,
                          planetopia::config::SEVSEG_CLK_PIN);

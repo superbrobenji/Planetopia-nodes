@@ -555,7 +555,7 @@ void Mesh::sendMessage(const uint8_t target[6], mesh_message msg) {
     return;
   }
   printMeshMessage(msg);
-  esp_err_t result = esp_now_send(target, (uint8_t*)&msg, sizeof(msg));
+  esp_err_t result = esp_now_send(target, reinterpret_cast<const uint8_t*>(&msg), sizeof(msg));
   if (result == ESP_OK) {
     Logger::logln("MESH", "Message sent to peer", LogLevel::LOG_DEBUG);
   } else {
@@ -632,7 +632,7 @@ void Mesh::broadcastMasterBeacon() {
 
   // Always send a broadcast frame so new nodes can discover the master even
   // when they are not yet in the peer list.
-  esp_err_t br = esp_now_send(nullptr, (uint8_t*)&beacon, sizeof(beacon));
+  esp_err_t br = esp_now_send(nullptr, reinterpret_cast<const uint8_t*>(&beacon), sizeof(beacon));
   Logger::logln("MESH", String("Beacon broadcast ") + (br == ESP_OK ? "OK" : "FAIL"), LogLevel::LOG_DEBUG);
 
   // Then unicast to known peers for reliability
