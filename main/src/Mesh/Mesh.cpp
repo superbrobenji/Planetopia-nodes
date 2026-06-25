@@ -158,7 +158,9 @@ static void registerPeerWithEspNow(const uint8_t mac[6], const uint8_t* ownPriva
 }
 
 Mesh::Mesh()
-  : isMaster(false), lastBeaconMillis(0), lastMasterBeaconReceivedMs(0) {
+  : isMaster(false), lastBeaconMillis(0), lastMasterBeaconReceivedMs(0),
+    bootEpoch(0), txSeqNum(0), replayCacheIdx(0),
+    lastRelayedEpoch(0), lastRelayedSeqNum(0) {
   instance = this;
   memset(currentMaster.mac, 0, 6);
   currentMaster.distance = 0xFF;
@@ -167,6 +169,7 @@ Mesh::Mesh()
   memset(deviceMacAddress, 0, 6);
   memset(devicePrivateKey, 0, 32);
   memset(devicePublicKey, 0, 32);
+  memset(replayCache, 0, sizeof(replayCache));
   peerMacs.clear();
   peerMacs.reserve(MAX_PEERS);  // pre-allocate to avoid runtime realloc
 }
@@ -319,6 +322,7 @@ PeerInfo* Mesh::findNextHopToMaster() {
 
 mesh_message Mesh::buildMessage(adapter_types type, const uint8_t data[12], MeshMessageType msgType) {
   mesh_message msg = {};
+  msg.protoVersion = PROTO_VERSION;
   msg.messageType = msgType;
   msg.dataType = type;
   memcpy(msg.originMacAddress, deviceMacAddress, 6);
@@ -330,6 +334,8 @@ mesh_message Mesh::buildMessage(adapter_types type, const uint8_t data[12], Mesh
   memcpy(msg.lastHopMacAddress, deviceMacAddress, 6);
   if (data) memcpy(msg.data, data, sizeof(msg.data));
   msg.hopCount = 0;
+  msg.epochNum = bootEpoch;
+  msg.seqNum = ++txSeqNum;
   return msg;
 }
 
@@ -340,10 +346,17 @@ bool Mesh::init() {
   // 1. Load persisted peers/keys
   loadPersistentState();
 
-  // 2. Configure Wi-Fi
+  // 2. Increment and save boot epoch (replay protection)
+  bootEpoch = EEPROM_Manager::getInstance().loadBootEpoch() + 1;
+  EEPROM_Manager::getInstance().saveBootEpoch(bootEpoch);
+  txSeqNum = 0;
+  memset(replayCache, 0, sizeof(replayCache));
+  Logger::logln("MESH", "Boot epoch: " + String(bootEpoch), LogLevel::LOG_INFO);
+
+  // 3. Configure Wi-Fi
   if (!setupWiFi()) return false;
 
-  // 3. Init ESP-NOW
+  // 4. Init ESP-NOW
   if (!setupEspNow()) return false;
 
   return true;
@@ -448,6 +461,22 @@ bool Mesh::setupEspNow() {
 // ------------------------------------------------
 
 
+bool Mesh::isReplay(const mesh_message& msg) {
+  for (size_t i = 0; i < REPLAY_CACHE_SIZE; ++i) {
+    if (memcmp(replayCache[i].mac, msg.originMacAddress, 6) == 0 &&
+        replayCache[i].epoch == msg.epochNum &&
+        replayCache[i].seq == msg.seqNum) {
+      return true;
+    }
+  }
+  // Record this entry in the ring buffer
+  memcpy(replayCache[replayCacheIdx].mac, msg.originMacAddress, 6);
+  replayCache[replayCacheIdx].epoch = msg.epochNum;
+  replayCache[replayCacheIdx].seq   = msg.seqNum;
+  replayCacheIdx = (replayCacheIdx + 1) % REPLAY_CACHE_SIZE;
+  return false;
+}
+
 void Mesh::onDataSentCallback(const wifi_tx_info_t* mac_addr, esp_now_send_status_t status) {
   String statusStr = (status == ESP_NOW_SEND_SUCCESS) ? "Delivery Success" : "Delivery Fail";
   Logger::logln("MESH", "Last Packet Send Status: " + statusStr, LogLevel::LOG_DEBUG);
@@ -469,6 +498,18 @@ void Mesh::onDataRecvCallback(const esp_now_recv_info* info, const uint8_t* inco
 
   Logger::logln("MESH", "Bytes received:", LogLevel::LOG_DEBUG);
   printMeshMessage(msg);
+
+  // Reject unsupported protocol versions (protoVersion=0 = old firmware pre-Task13)
+  if (msg.protoVersion != PROTO_VERSION) {
+    Logger::logln("MESH", "Unsupported proto version, dropping", LogLevel::LOG_WARN);
+    return;
+  }
+
+  // Replay protection: drop messages already seen
+  if (isReplay(msg)) {
+    Logger::logln("MESH", "Replayed message dropped", LogLevel::LOG_WARN);
+    return;
+  }
 
   // Enrollment frames are processed before the peer allowlist check (chicken-and-egg exemption)
   if (msg.messageType == MESH_TYPE_ENROLLMENT) {
@@ -737,6 +778,16 @@ void Mesh::processMasterBeacon(const mesh_message& msg) {
   }
 
   if (!isMaster) {
+    // C10 fix: only relay if this beacon is newer than the last one we relayed
+    bool isNewer = (msg.epochNum > lastRelayedEpoch) ||
+                   (msg.epochNum == lastRelayedEpoch && msg.seqNum > lastRelayedSeqNum);
+    if (!isNewer) {
+      Logger::logln("MESH", "Duplicate beacon relay suppressed", LogLevel::LOG_DEBUG);
+      return;
+    }
+    lastRelayedEpoch  = msg.epochNum;
+    lastRelayedSeqNum = msg.seqNum;
+
     mesh_message relay = msg;
     relay.hopCount = newDistance;
     memcpy(relay.lastHopMacAddress, deviceMacAddress, 6);

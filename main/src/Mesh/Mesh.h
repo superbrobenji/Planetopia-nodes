@@ -27,8 +27,11 @@ enum MeshMessageType : uint8_t {
   MESH_TYPE_JOIN_ACK      = 3,  // Master → new node: enrollment approved
 };
 
-// --- Mesh message struct ---
-struct mesh_message {
+static constexpr uint8_t PROTO_VERSION = 1;
+
+// --- Mesh message struct (packed: wire protocol, no padding) ---
+struct __attribute__((packed)) mesh_message {
+  uint8_t protoVersion;           // Always PROTO_VERSION (1)
   MeshMessageType messageType;
   adapter_types dataType;
   uint8_t originMacAddress[6];
@@ -36,7 +39,12 @@ struct mesh_message {
   uint8_t lastHopMacAddress[6];
   uint8_t data[12];
   uint8_t hopCount;
+  uint32_t epochNum;              // Boot count of origin node (replay protection)
+  uint16_t seqNum;                // Per-boot message counter 0-65535 (replay protection)
 };
+// sizeof(mesh_message) = 1+1+4+6+6+6+12+1+4+2 = 43 bytes (adapter_types is int = 4B)
+// With __attribute__((packed)): no padding between fields
+static_assert(sizeof(mesh_message) == 43, "mesh_message size changed — update server proto");
 
 // Peer info struct for RAM and EEPROM storage
 struct PeerInfo {
@@ -125,6 +133,21 @@ private:
   uint8_t devicePrivateKey[32];
   uint8_t devicePublicKey[32];
   void loadOrGenerateKeypair();
+
+  // Replay protection
+  uint32_t bootEpoch;
+  uint16_t txSeqNum;
+
+  struct ReplayEntry { uint8_t mac[6]; uint32_t epoch; uint16_t seq; };
+  static constexpr size_t REPLAY_CACHE_SIZE = 16;
+  ReplayEntry replayCache[REPLAY_CACHE_SIZE];
+  size_t replayCacheIdx;
+
+  bool isReplay(const mesh_message& msg);
+
+  // Beacon relay dedup (fix C10)
+  uint32_t lastRelayedEpoch;
+  uint16_t lastRelayedSeqNum;
 
   // Pending enrollment relay (filled in ESP-NOW callback, drained in loop())
   volatile bool _pendingEnrollmentRelay = false;

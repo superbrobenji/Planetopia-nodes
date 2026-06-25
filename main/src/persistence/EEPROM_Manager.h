@@ -9,7 +9,7 @@ namespace planetopia {
 namespace utils {
 
 // EEPROM address constants - centralized in one place
-// Layout (v2 — expanded for per-peer public keys):
+// Layout (v3 — added boot epoch for replay protection):
 //   0   MASTER_FLAG      (1 byte)
 //   1   DEV_FLAG         (1 byte)
 //   8   ADAPTER_TYPE     (1 byte)
@@ -22,7 +22,8 @@ namespace utils {
 // 449   PUBLIC_KEY       (32 bytes, ends 480)
 // 481   KEYPAIR_CRC      (2 bytes, ends 482)
 // 483   ENROLLED_FLAG    (1 byte)
-// Total used: 484 bytes — fits in 512
+// 484   BOOT_EPOCH       (4 bytes, ends 487) — boot count for replay protection
+// Total used: 488 bytes — fits in 512
 namespace EEPROM_ADDRESSES {
 constexpr uint16_t MASTER_FLAG = 0;      // Master flag (1 byte)
 constexpr uint16_t DEV_FLAG = 1;         // Dev mode flag (1 byte)
@@ -36,6 +37,7 @@ constexpr uint16_t PRIVATE_KEY   = 417;  // 32 bytes: Curve25519 private key
 constexpr uint16_t PUBLIC_KEY    = 449;  // 32 bytes: Curve25519 public key
 constexpr uint16_t KEYPAIR_CRC   = 481;  // 2 bytes: CRC16 over private+public key
 constexpr uint16_t ENROLLED_FLAG = 483;  // 1 byte: 0x01 = enrolled, 0xFF = not enrolled
+constexpr uint16_t BOOT_EPOCH    = 484;  // 4 bytes: boot count for replay protection (ends 487)
 
 // Old v1 addresses (used only during migration in EEPROM_Manager::init())
 constexpr uint16_t V1_REBOOT_REASON = 92;
@@ -114,6 +116,10 @@ public:
   void saveKeypair(const uint8_t* privateKey32, const uint8_t* publicKey32);
   bool loadEnrolledFlag();
   void saveEnrolledFlag(bool enrolled);
+
+  // Boot epoch for replay protection
+  uint32_t loadBootEpoch();
+  void saveBootEpoch(uint32_t epoch);
 
   // Utility operations
   void clearAll();

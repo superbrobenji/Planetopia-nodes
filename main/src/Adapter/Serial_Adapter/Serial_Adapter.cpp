@@ -334,6 +334,33 @@ size_t Serial_Adapter::encodeMeshMessage(const planetopia::mesh::mesh_message& m
   memcpy(out + idx, tmp, n);
   idx += n;
 
+  // 8: epochNum (uint32 varint)
+  n = writeUint32Field(tmp, 8, msg.epochNum);
+  if (!ensure(n)) {
+    Logger::logln("Serial_Adapter", "Buffer overflow while encoding epochNum", LogLevel::LOG_ERROR);
+    return 0;
+  }
+  memcpy(out + idx, tmp, n);
+  idx += n;
+
+  // 9: seqNum (uint32 varint)
+  n = writeUint32Field(tmp, 9, static_cast<uint32_t>(msg.seqNum));
+  if (!ensure(n)) {
+    Logger::logln("Serial_Adapter", "Buffer overflow while encoding seqNum", LogLevel::LOG_ERROR);
+    return 0;
+  }
+  memcpy(out + idx, tmp, n);
+  idx += n;
+
+  // 10: protoVersion (uint32 varint)
+  n = writeUint32Field(tmp, 10, static_cast<uint32_t>(msg.protoVersion));
+  if (!ensure(n)) {
+    Logger::logln("Serial_Adapter", "Buffer overflow while encoding protoVersion", LogLevel::LOG_ERROR);
+    return 0;
+  }
+  memcpy(out + idx, tmp, n);
+  idx += n;
+
   Logger::logln("Serial_Adapter", "Successfully encoded mesh message to " + String(idx) + " bytes", LogLevel::LOG_DEBUG);
   return idx;
 }

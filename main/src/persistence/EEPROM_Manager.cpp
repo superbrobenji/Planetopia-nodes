@@ -369,6 +369,21 @@ void EEPROM_Manager::saveEnrolledFlag(bool enrolled) {
   EEPROM.commit();
 }
 
+uint32_t EEPROM_Manager::loadBootEpoch() {
+  if (!ensureInitialized()) return 0;
+  uint32_t epoch = 0;
+  for (int i = 0; i < 4; ++i)
+    epoch |= static_cast<uint32_t>(EEPROM.read(EEPROM_ADDRESSES::BOOT_EPOCH + i)) << (i * 8);
+  return (epoch == 0xFFFFFFFF) ? 0 : epoch;
+}
+
+void EEPROM_Manager::saveBootEpoch(uint32_t epoch) {
+  if (!ensureInitialized() || isDevMode) return;
+  for (int i = 0; i < 4; ++i)
+    EEPROM.write(EEPROM_ADDRESSES::BOOT_EPOCH + i, static_cast<uint8_t>((epoch >> (i * 8)) & 0xFF));
+  EEPROM.commit();
+}
+
 // Utility operations
 void EEPROM_Manager::clearAll() {
   if (!ensureInitialized()) return;
