@@ -114,7 +114,7 @@ void Mesh::generateRandomMeshKey() {}
 bool Mesh::meshKeyIsSet() const { return false; }
 
 void Mesh::updatePeerLastSeen(const uint8_t*) {}
-void Mesh::processMasterBeacon(const mesh_message&) {}
+// processMasterBeacon is implemented in mesh_logic_impl.cpp (real logic)
 void Mesh::processAdapterData(const mesh_message&) {}
 
 bool Mesh::setupWiFi() { return true; }
@@ -125,7 +125,7 @@ void Mesh::processEnrollmentRequest(const mesh_message&) {}
 void Mesh::processJoinAck(const mesh_message&) {}
 
 void Mesh::loadOrGenerateKeypair() {}
-bool Mesh::isReplay(const mesh_message&) { return false; }
+// isReplay and processMasterBeacon are implemented in mesh_logic_impl.cpp (real logic)
 void Mesh::drainRecvQueue() {}
 
 }  // namespace mesh

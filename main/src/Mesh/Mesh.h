@@ -12,6 +12,13 @@
 #include "src/persistence/EEPROM_Manager.h"
 #include "../../project_config.h"  // Added for global limits/config
 
+#ifdef UNIT_TEST
+// Forward declarations for test fixture classes (global namespace) so that
+// friend declarations inside planetopia::mesh::Mesh are valid.
+class ReplayCacheTest;
+class MeshLogicTest;
+#endif
+
 namespace planetopia {
 namespace mesh {
 
@@ -60,7 +67,14 @@ struct MasterInfo {
 };
 
 class Mesh {
+#ifdef UNIT_TEST
+  // In unit test builds, all members are public so test bodies (which live in
+  // compiler-generated subclasses of the fixture and therefore cannot inherit
+  // C++ friend access) can access private state directly.
+public:
+#else
 private:
+#endif
   static constexpr int MESH_KEY_SIZE = 16;
 
   uint8_t meshKey[MESH_KEY_SIZE];

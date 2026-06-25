@@ -20,6 +20,9 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/../main
 )
 
+# UNIT_TEST enables friend declarations in Mesh.h for test fixture access
+add_compile_definitions(UNIT_TEST)
+
 # Firmware source files compilable on host (hardware-independent or mockable)
 set(FIRMWARE_SOURCES
   ../main/src/Mesh/serialization/ProtobufCodec.cpp
@@ -43,6 +46,7 @@ set(FIRMWARE_SOURCES
   mocks/EEPROM.cpp
   mocks/WiFi.cpp
   mocks/firmware_stubs.cpp
+  mocks/mesh_logic_impl.cpp
 )
 
 enable_testing()
