@@ -27,10 +27,11 @@ using planetopia::utils::EEPROM_SIZES::MAX_PEERS;  // Use constant from EEPROM_M
 
 // --- Mesh protocol message type ---
 enum MeshMessageType : uint8_t {
-  MESH_TYPE_ADAPTER_DATA  = 0,
-  MESH_TYPE_MASTER_BEACON = 1,
-  MESH_TYPE_ENROLLMENT    = 2,  // New node → master: public key announcement
-  MESH_TYPE_JOIN_ACK      = 3,  // Master → new node: enrollment approved
+  MESH_TYPE_ADAPTER_DATA         = 0,
+  MESH_TYPE_MASTER_BEACON        = 1,
+  MESH_TYPE_ENROLLMENT           = 2,
+  MESH_TYPE_SERIAL_CMD_BROADCAST = 3,  // server→device only
+  MESH_TYPE_JOIN_ACK             = 4,  // server→device only; was 3, changed to avoid collision with SERIAL_CMD_BROADCAST
 };
 
 static constexpr uint8_t PROTO_VERSION = 1;
@@ -46,11 +47,11 @@ struct __attribute__((packed)) mesh_message {
   uint8_t data[12];
   uint8_t hopCount;
   uint32_t epochNum;              // Boot count of origin node (replay protection)
-  uint16_t seqNum;                // Per-boot message counter 0-65535 (replay protection)
+  uint16_t seqNum;                // Per-boot message counter (replay protection)
+  uint8_t enrollmentPublicKey[32]; // Curve25519 key; zero for non-enrollment messages
 };
-// sizeof(mesh_message) = 1+1+4+6+6+6+12+1+4+2 = 43 bytes (adapter_types is int32_t = 4B)
-// With __attribute__((packed)): no padding between fields
-static_assert(sizeof(mesh_message) == 43, "mesh_message size changed — update server proto");
+// 1+1+4+6+6+6+12+1+4+2+32 = 75 bytes (adapter_types is int32_t = 4B, packed)
+static_assert(sizeof(mesh_message) == 75, "mesh_message size changed — update server proto");
 
 // Peer info struct for RAM and EEPROM storage
 struct PeerInfo {
