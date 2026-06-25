@@ -248,4 +248,63 @@ for {
 * All ESP-NOW frames are **AES-encrypted**.  The LMK is the 16-byte `DEFAULT_MESH_KEY` in `project_config.h` and is identical on every node.  The server must either know this key or treat frames as opaque binary.
 * Every master beacon is now sent **twice**: once as raw broadcast (ESP-NOW addr=`FF:FF:FF:FF:FF:FF`) and once unicast to each peer.  Gateways should ignore the broadcast copy when proxying traffic to the cloud to avoid duplicates.
 
+---
+
+### Enrollment Protocol (node provisioning)
+
+When a node boots for the first time (or after an EEPROM wipe) it is
+**unenrolled**. An unenrolled node:
+
+1. Prints its Curve25519 public key to serial (master node only relays):
+   ```
+   PLANETOPIA_PUBKEY:3a7f2b...  (64 hex chars = 32 bytes)
+   ```
+2. Broadcasts `MESH_TYPE_ENROLLMENT` (type=2) messages every 10 seconds with
+   `enrollmentPublicKey` populated.
+3. Refuses to forward sensor data until it receives a `MESH_TYPE_JOIN_ACK`.
+
+**Server responsibilities for enrollment:**
+
+1. **Detect enrollment frames** — watch for incoming frames with `messageType == 2`.
+   Extract the 32-byte `enrollmentPublicKey` and the `originMacAddress`.
+
+2. **Approve the node** — your server decides whether to admit the node (user
+   confirmation, allowlist check, etc.).
+
+3. **Send JOIN_ACK** — construct a `MeshMessage` and write it to serial:
+   ```go
+   m := &mesh.MeshMessage{
+     MessageType:      4,               // MESH_TYPE_JOIN_ACK
+     DataType:         3,               // SERIAL_ADAPTER
+     TargetMacAddress: nodeMac[:],      // 6-byte MAC of the unenrolled node
+     Data:             make([]byte, 12), // all zeros; content ignored
+   }
+   writeFrame(port, m)
+   ```
+   The master relays this to the target node over the mesh.
+
+4. **Node becomes enrolled** — the node sets its enrolled flag in EEPROM and
+   begins forwarding sensor data. It will no longer broadcast enrollment frames.
+
+**Key points:**
+- The server should persist approved public keys (keyed by MAC address) for
+  future session continuity checks.
+- If the serial framing drops the JOIN_ACK the node will retry every 10 seconds.
+- `enrollmentPublicKey` is zero-filled (`\x00` × 32) in all non-enrollment messages.
+
+#### Enrollment message flow
+
+```
+[node boot]
+    Node → (ESP-NOW broadcast) → Master: MESH_TYPE_ENROLLMENT (pubkey inside)
+    Master → (serial frame) → Server: forwards enrollment frame
+
+[server approves]
+    Server → (serial frame) → Master: MESH_TYPE_JOIN_ACK (targetMAC = node MAC)
+    Master → (ESP-NOW unicast) → Node: JOIN_ACK
+
+[node enrolled]
+    Node → begins sending MESH_TYPE_ADAPTER_DATA
+```
+
 

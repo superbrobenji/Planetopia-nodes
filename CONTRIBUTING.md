@@ -4,7 +4,7 @@ Planetopia follows Tiger-Style engineering principles: safety first, performance
 
 ## 0. Quick checklist before opening a PR
 
-- [ ] `arduino-cli compile -e --fqbn esp32:esp32:esp32` builds with **no warnings** (`-Wall -Wextra -Werror` enabled).
+- [ ] `arduino-cli compile -e --fqbn esp32:esp32:esp32da main` builds with **no warnings** (run locally — not in CI).
 - [ ] `clang-format -style=file` applied; `git diff --check` shows no whitespace errors.
 - [ ] No `new`, `malloc`, or unbounded `std::vector` growth after setup.
 - [ ] All errors funnel through `src/error/Error.h` (`planetopia::err::*`).
@@ -42,13 +42,18 @@ Assertions live in unit-tests, not production.
 * No heap allocation (`new`, `malloc`) after `setup()`.
 
 ## 6. CI pipeline (GitHub Actions)
-The workflow runs automatically:
-```
-- arduino-cli compile (ESP32 + strict warnings)
-- cppcheck (MISRA subset)
-- clang-format check
-```
-PR merges are blocked until the workflow is green.
+
+The workflow runs automatically on every push and PR:
+
+- **unit-tests** — CMake build + CTest (Linux native, no ESP32 toolchain needed)
+- **lint-format** — `clang-format --dry-run --Werror` over all `main/src/*.{h,cpp}`
+- **static-analysis** — `cppcheck` with `--error-exitcode=1`
+
+PR merges are blocked until all three jobs are green.
+
+> **Note:** Arduino / ESP32 toolchain compilation is not in CI (large binary
+> download, ~10 min). Run `arduino-cli compile --fqbn esp32:esp32:esp32da main`
+> locally before submitting a PR that touches firmware source.
 
 ---
 Thank you for keeping Planetopia rock-solid! 💪

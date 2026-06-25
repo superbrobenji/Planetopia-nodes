@@ -86,7 +86,7 @@ Create the corresponding `.cpp` file in `main/src/Adapter/[AdapterName]_Adapter/
 ```cpp
 #include "[AdapterName]_Adapter.h"
 #include "src/Mesh/Mesh.h"
-#include "src/utils/Logger.h"
+#include "src/core/Logger.h"
 
 namespace planetopia {
 namespace adapter {
@@ -137,7 +137,7 @@ void [AdapterName]_Adapter::onMeshDataImpl(const planetopia::mesh::mesh_message&
 ```cpp
 #include "Temp_Adapter.h"
 #include "src/Mesh/Mesh.h"
-#include "src/utils/Logger.h"
+#include "src/core/Logger.h"
 
 namespace planetopia {
 namespace adapter {
@@ -258,15 +258,9 @@ In `main/src/Adapter/AdapterFactory.cpp`, add the include for your adapter:
 To change the default adapter for testing, modify `main/src/Adapter/AdapterFactory.cpp`:
 
 ```cpp
-void AdapterFactory::initializeDefaultsIfUnset() {
-    // Check if adapter type is already set
-    if (EEPROM.read(ADAPTER_TYPE_ADDR_FACTORY) == 0xFF) {
-        // Set default adapter type (change this line for testing)
-        EEPROM.write(ADAPTER_TYPE_ADDR_FACTORY, TEMP_ADAPTER);  // Changed from PIR_ADAPTER
-        EEPROM.commit();
-        Logger::logln(LogLevel::LOG_INFO, "Set default adapter type to TEMP_ADAPTER");
-    }
-}
+// Do not call this method directly — change DEFAULT_ADAPTER in project_config.h instead.
+// AdapterFactory::initializeDefaultsIfUnset() reads from EEPROM_Manager, which already
+// seeds from project_config.h::DEFAULT_ADAPTER on a blank device.
 ```
 
 ### Method 2: Use the Serial Configuration Command
@@ -280,23 +274,11 @@ You can also change the adapter type at runtime using the serial configuration c
 
 ### Method 3: Clear EEPROM and Restart
 
-To reset to factory defaults:
+Use the **reset button** (hold 5 seconds, then confirm within 3 seconds) — this calls
+`EEPROM_Manager::getInstance().clearAll()` internally and handles the commit.
 
-1. **Option A**: Clear the specific EEPROM address:
-   ```cpp
-   // Add this temporarily to setup() in main.ino
-   EEPROM.write(8, 0xFF);  // Clear adapter type
-   EEPROM.commit();
-   ```
-
-2. **Option B**: Clear all EEPROM:
-   ```cpp
-   // Add this temporarily to setup() in main.ino
-   for (int i = 0; i < 512; i++) {
-       EEPROM.write(i, 0xFF);
-   }
-   EEPROM.commit();
-   ```
+Do not call `EEPROM.write()` or `EEPROM.commit()` directly — route all EEPROM I/O
+through `EEPROM_Manager` to respect DEV_MODE and address constants.
 
 ## Adapter Architecture Overview
 
@@ -388,14 +370,15 @@ Connect to the master node's serial port to see:
 | Compilation errors | Check includes and namespace usage |
 | Adapter not responding | Verify pin configuration and hardware setup |
 | Mesh messages not received | Check adapter type filtering logic |
-| EEPROM not persisting | Ensure `EEPROM.commit()` is called |
+| EEPROM not persisting | Use `EEPROM_Manager::getInstance()` methods — never call `EEPROM.write/commit` directly |
 | Wrong pin being used | Verify default pin constant is set correctly |
 
 ### 6. Debugging Tips
 
 1. **Add logging** to your adapter's methods:
    ```cpp
-   Logger::logln(LogLevel::LOG_INFO, "Temp_Adapter: Temperature read: %.1f", _lastTemperature);
+   // Logger::logln takes (tag, message, level). For formatted strings, use String():
+   Logger::logln("TEMP", ("Temp_Adapter: Temperature read: " + String(_lastTemperature, 1)).c_str(), LogLevel::LOG_INFO);
    ```
 
 2. **Check mesh message flow** by adding logging to `onMeshDataImpl`
