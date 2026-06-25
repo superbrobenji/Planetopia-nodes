@@ -361,7 +361,13 @@ void EEPROM_Manager::dumpEEPROM() {
   for (uint16_t i = 0; i < EEPROM_SIZES::TOTAL_SIZE; i += 16) {
     String line = String(i, HEX) + ": ";
     for (uint8_t j = 0; j < 16 && (i + j) < EEPROM_SIZES::TOTAL_SIZE; ++j) {
-      uint8_t val = EEPROM.read(static_cast<uint16_t>(i + j));
+      uint16_t addr = static_cast<uint16_t>(i + j);
+      // Skip keypair range — private key must never appear in debug output
+      if (addr >= EEPROM_ADDRESSES::PRIVATE_KEY && addr <= EEPROM_ADDRESSES::KEYPAIR_CRC + 1) {
+        line += "XX ";
+        continue;
+      }
+      uint8_t val = EEPROM.read(addr);
       if (val < 16) line += "0";
       line += String(val, HEX) + " ";
     }

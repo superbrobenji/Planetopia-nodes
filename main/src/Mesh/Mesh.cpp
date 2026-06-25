@@ -260,11 +260,28 @@ void Mesh::loadOrGenerateKeypair() {
   mbedtls_ctr_drbg_init(&ctr_drbg);
 
   const char* pers = "planetopia_keygen";
-  mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-                         reinterpret_cast<const uint8_t*>(pers), strlen(pers));
+  int ret;
+  ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
+                               reinterpret_cast<const uint8_t*>(pers), strlen(pers));
+  if (ret != 0) {
+    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
+                           planetopia::core::ModuleDigit::MESH, 1,
+                           "MESH: keypair gen — entropy seed failed");
+  }
 
-  mbedtls_ecp_group_load(&grp, MBEDTLS_ECP_DP_CURVE25519);
-  mbedtls_ecdh_gen_public(&grp, &d, &Q, mbedtls_ctr_drbg_random, &ctr_drbg);
+  ret = mbedtls_ecp_group_load(&grp, MBEDTLS_ECP_DP_CURVE25519);
+  if (ret != 0) {
+    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
+                           planetopia::core::ModuleDigit::MESH, 2,
+                           "MESH: keypair gen — ecp_group_load failed");
+  }
+
+  ret = mbedtls_ecdh_gen_public(&grp, &d, &Q, mbedtls_ctr_drbg_random, &ctr_drbg);
+  if (ret != 0) {
+    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
+                           planetopia::core::ModuleDigit::MESH, 3,
+                           "MESH: keypair gen — ecdh_gen_public failed");
+  }
 
   // Export private scalar (d) — 32 bytes big-endian (NEVER printed to serial)
   mbedtls_mpi_write_binary(&d, devicePrivateKey, 32);
