@@ -437,14 +437,14 @@ bool EEPROM_Manager::loadKnownMasterMac(uint8_t mac[6]) {
 void EEPROM_Manager::saveKnownMasterMac(const uint8_t mac[6]) {
   if (!ensureInitialized() || isDevMode) return;
   for (int i = 0; i < 6; ++i) EEPROM.write(EEPROM_ADDRESSES::KNOWN_MASTER_MAC + i, mac[i]);
-  markDirty();
+  EEPROM.commit();  // Immediate commit — TOFU security anchor must survive power loss
   logOperation("Known master MAC saved");
 }
 
 void EEPROM_Manager::clearKnownMasterMac() {
   if (!ensureInitialized() || isDevMode) return;
   for (int i = 0; i < 6; ++i) EEPROM.write(EEPROM_ADDRESSES::KNOWN_MASTER_MAC + i, 0xFF);
-  markDirty();
+  EEPROM.commit();  // Immediate commit — TOFU security anchor must survive power loss
   logOperation("Known master MAC cleared");
 }
 

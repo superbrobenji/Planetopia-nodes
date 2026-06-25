@@ -574,6 +574,7 @@ void Mesh::drainRecvQueue() {
 }
 
 void IRAM_ATTR Mesh::dataRecvTrampoline(const esp_now_recv_info* mac_addr, const uint8_t* data, int len) {
+  if (!instance) return;
   instance->onDataRecvCallback(mac_addr, data, len);
 }
 

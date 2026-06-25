@@ -93,7 +93,7 @@ void setup() {
   {
     esp_reset_reason_t reason = esp_reset_reason();
     EEPROM_Manager& em = EEPROM_Manager::getInstance();
-    // EEPROM not yet inited here — init it early just for this check
+    // Must init EEPROM before setDevMode() — saveRebootReason/saveRebootCount no-op in dev mode
     em.init();
     em.saveRebootReason(static_cast<uint8_t>(reason));
     if (reason == ESP_RST_WDT || reason == ESP_RST_TASK_WDT || reason == ESP_RST_INT_WDT) {
