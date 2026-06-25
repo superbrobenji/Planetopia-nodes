@@ -2,11 +2,11 @@
 #include <cstring>
 #include "src/core/Logger.h"
 
-// Forward declaration of helper used before definition
-static bool skipField(const uint8_t*& ptr, const uint8_t* end, uint8_t wireType);
-
 namespace planetopia {
 namespace utils {
+
+// Forward declaration of helper used before definition
+static bool skipField(const uint8_t*& ptr, const uint8_t* end, uint8_t wireType);
 
 size_t ProtobufCodec::encodeMeshMessage(const planetopia::mesh::mesh_message& msg,
                                         uint8_t* out, size_t outCap) {
@@ -337,7 +337,7 @@ void ProtobufCodec::logEncodeError(const char* operation, const char* details) {
 }
 
 // Helper function for skipping unknown fields
-bool skipField(const uint8_t*& ptr, const uint8_t* end, uint8_t wireType) {
+static bool skipField(const uint8_t*& ptr, const uint8_t* end, uint8_t wireType) {
   switch (static_cast<WireType>(wireType)) {
     case WireType::VARINT:
       {
