@@ -133,18 +133,6 @@ protected:
   static constexpr uint8_t kPeer2Mac[6] = {0xBB,0xBB,0xBB,0xBB,0xBB,0x02};
   static constexpr uint8_t kOriginMac[6]= {0xCC,0xCC,0xCC,0xCC,0xCC,0x03};
 
-  Mesh makeMeshWithPeers(int numPeers) {
-    Mesh mesh;
-    memcpy(mesh.deviceMacAddress, kMyMac, 6);
-    if (numPeers >= 1) {
-      PeerInfo p{}; memcpy(p.mac, kPeer1Mac, 6); p.lastSeenMillis = 0; mesh.appendPeer(p);
-    }
-    if (numPeers >= 2) {
-      PeerInfo p{}; memcpy(p.mac, kPeer2Mac, 6); p.lastSeenMillis = 0; mesh.appendPeer(p);
-    }
-    return mesh;
-  }
-
   mesh_message makeDataMsg(const uint8_t origin[6], const uint8_t target[6],
                            uint32_t epoch, uint16_t seq, uint8_t hopCount = 0) {
     mesh_message m{};
