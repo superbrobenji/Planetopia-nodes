@@ -67,14 +67,14 @@ static void readOwnMac(uint8_t out[6]) {
 
 void PIR_Adapter::sendNodeHealth() {
   uint8_t data[64] = {0};
-  data[0] = 0xB2;  // OP_NODE_HEALTH
+  data[0] = 0xB2; // OP_NODE_HEALTH
   data[1] = AdapterFactory::adapterTypeToEEPROM(adapter_types::PIR_ADAPTER);
   uint8_t mac[6];
   readOwnMac(mac);
   memcpy(&data[2], mac, 6);
   uint32_t uptimeSec = millis() / 1000;
-  data[8]  = static_cast<uint8_t>(uptimeSec & 0xFF);
-  data[9]  = static_cast<uint8_t>((uptimeSec >> 8)  & 0xFF);
+  data[8] = static_cast<uint8_t>(uptimeSec & 0xFF);
+  data[9] = static_cast<uint8_t>((uptimeSec >> 8) & 0xFF);
   data[10] = static_cast<uint8_t>((uptimeSec >> 16) & 0xFF);
   data[11] = static_cast<uint8_t>((uptimeSec >> 24) & 0xFF);
   if (instance)
