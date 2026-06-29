@@ -661,7 +661,7 @@ void Mesh::transmitCore(const adapter_types type, const uint8_t data[12], MeshMe
 
   // Only for adapter data, set target as master
   if (msgType == MESH_TYPE_ADAPTER_DATA) {
-    memcpy(msg.targetMacAddress, currentMaster.mac, 6);
+    memcpy(msg.targetMacAddress, currentMaster.mac, 6); // authoritative: overrides relay's original target
   }
 
   // Routing: always use next hop if possible

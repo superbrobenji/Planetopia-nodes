@@ -146,6 +146,10 @@ void Mesh::transmitCore(const adapter_types type, const uint8_t data[12], MeshMe
   if (nextHop && planetopia::utils::MacAddress(nextHop->mac) !=
                      planetopia::utils::MacAddress(deviceMacAddress)) {
     sendMessage(nextHop->mac, msg);
+  } else {
+    // Intentionally stubbed: production calls err::fail(); tests never hit this
+    // path because fixtures always register master as a live peer.
+    Logger::logln("MESH", "No next hop to master", LogLevel::LOG_WARN);
   }
 }
 
