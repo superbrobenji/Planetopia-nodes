@@ -127,5 +127,104 @@ void Mesh::relayDownlink(const mesh_message& msg) {
   }
 }
 
+void Mesh::transmitCore(const adapter_types type, const uint8_t data[12], MeshMessageType msgType,
+                        const mesh_message* msgOverride) {
+  mesh_message msg;
+  if (msgOverride) {
+    msg = *msgOverride;
+  } else {
+    msg = buildMessage(type, data, msgType);
+  }
+
+  // Only for adapter data, set target as master
+  if (msgType == MESH_TYPE_ADAPTER_DATA) {
+    memcpy(msg.targetMacAddress, currentMaster.mac, 6);
+  }
+
+  // Routing: always use next hop if possible
+  PeerInfo* nextHop = findNextHopToMaster();
+  if (nextHop && planetopia::utils::MacAddress(nextHop->mac) !=
+                     planetopia::utils::MacAddress(deviceMacAddress)) {
+    sendMessage(nextHop->mac, msg);
+  }
+}
+
+PeerInfo* Mesh::findPeer(const uint8_t mac[6]) {
+  for (size_t i = 0; i < peerCount; ++i) {
+    if (memcmp(peerMacs[i].mac, mac, 6) == 0) {
+      return &peerMacs[i];
+    }
+  }
+  return nullptr;
+}
+
+bool Mesh::isPeerInRange(const uint8_t mac[6]) {
+  PeerInfo* peer = findPeer(mac);
+  if (!peer)
+    return false;
+  return millis() - peer->lastSeenMillis < planetopia::config::STALE_PEER_THRESHOLD_MS;
+}
+
+PeerInfo* Mesh::findNextHopToMaster() {
+  // For this mesh: nextHop == currentMaster.nextHop
+  if (currentMaster.distance == 0xFF)
+    return nullptr;
+  for (size_t i = 0; i < peerCount; ++i) {
+    if (planetopia::utils::MacAddress(peerMacs[i].mac) ==
+            planetopia::utils::MacAddress(currentMaster.nextHop) &&
+        isPeerInRange(peerMacs[i].mac) &&
+        planetopia::utils::MacAddress(peerMacs[i].mac) !=
+            planetopia::utils::MacAddress(deviceMacAddress))
+      return &peerMacs[i];
+  }
+  return nullptr;
+}
+
+void Mesh::linkDataRecvCallback(std::function<void(mesh_message)> recvCallback) {
+  externalRecvCallback = recvCallback;
+}
+
+void Mesh::processAdapterData(const mesh_message& msg) {
+  static constexpr uint8_t OP_CONFIG_SET = 0xA0;
+  static const uint8_t kBroadcastMac[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+
+  bool addressedToSelf    = (memcmp(msg.targetMacAddress, deviceMacAddress, 6) == 0);
+  bool isBroadcastTarget  = (memcmp(msg.targetMacAddress, kBroadcastMac,    6) == 0);
+  bool addressedToMaster  = hasMasterMac &&
+                            (memcmp(msg.targetMacAddress, currentMaster.mac, 6) == 0);
+
+  if (!isMaster && !addressedToSelf && !isBroadcastTarget) {
+    if (addressedToMaster) {
+      // Uplink: relay toward master via routing table
+      if (isReplay(msg)) return;
+      if (msg.hopCount >= planetopia::config::MAX_HOPS) return;
+      mesh_message relay = msg;
+      relay.hopCount++;
+      memcpy(relay.lastHopMacAddress, deviceMacAddress, 6);
+      transmitCore(relay.dataType, relay.data, MESH_TYPE_ADAPTER_DATA, &relay);
+      return;
+    }
+    // Downlink to another node: relay outward (Tasks 3 fills this in)
+    relayDownlink(msg);
+    return;
+  }
+
+  // Local delivery
+  bool isConfigOpcode = (msg.dataType == adapter_types::SERIAL_ADAPTER &&
+                         msg.data[0] == OP_CONFIG_SET);
+  if (isConfigOpcode && hasMasterMac &&
+      memcmp(msg.originMacAddress, knownMasterMac, 6) != 0) {
+    Logger::logln("MESH", "CONFIG_SET from non-master MAC rejected", LogLevel::LOG_WARN);
+    return;
+  }
+  if (externalRecvCallback)
+    externalRecvCallback(msg);
+
+  // Broadcast: also relay so multi-hop nodes receive it (Task 3 test covers this)
+  if (isBroadcastTarget && !isMaster) {
+    relayDownlink(msg);
+  }
+}
+
 }  // namespace mesh
 }  // namespace planetopia

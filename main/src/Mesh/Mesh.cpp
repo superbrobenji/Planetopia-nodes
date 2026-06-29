@@ -922,16 +922,45 @@ void Mesh::processMasterBeacon(const mesh_message& msg) {
 }
 
 void Mesh::processAdapterData(const mesh_message& msg) {
-  // Config-modifying opcodes are only accepted from the known master (S3 fix)
   static constexpr uint8_t OP_CONFIG_SET = 0xA0;
-  bool isConfigOpcode =
-      (msg.dataType == adapter_types::SERIAL_ADAPTER && msg.data[0] == OP_CONFIG_SET);
-  if (isConfigOpcode && hasMasterMac && memcmp(msg.originMacAddress, knownMasterMac, 6) != 0) {
+  static const uint8_t kBroadcastMac[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+
+  bool addressedToSelf    = (memcmp(msg.targetMacAddress, deviceMacAddress, 6) == 0);
+  bool isBroadcastTarget  = (memcmp(msg.targetMacAddress, kBroadcastMac,    6) == 0);
+  bool addressedToMaster  = hasMasterMac &&
+                            (memcmp(msg.targetMacAddress, currentMaster.mac, 6) == 0);
+
+  if (!isMaster && !addressedToSelf && !isBroadcastTarget) {
+    if (addressedToMaster) {
+      // Uplink: relay toward master via routing table
+      if (isReplay(msg)) return;
+      if (msg.hopCount >= planetopia::config::MAX_HOPS) return;
+      mesh_message relay = msg;
+      relay.hopCount++;
+      memcpy(relay.lastHopMacAddress, deviceMacAddress, 6);
+      transmitCore(relay.dataType, relay.data, MESH_TYPE_ADAPTER_DATA, &relay);
+      return;
+    }
+    // Downlink to another node: relay outward (Tasks 3 fills this in)
+    relayDownlink(msg);
+    return;
+  }
+
+  // Local delivery
+  bool isConfigOpcode = (msg.dataType == adapter_types::SERIAL_ADAPTER &&
+                         msg.data[0] == OP_CONFIG_SET);
+  if (isConfigOpcode && hasMasterMac &&
+      memcmp(msg.originMacAddress, knownMasterMac, 6) != 0) {
     Logger::logln("MESH", "CONFIG_SET from non-master MAC rejected", LogLevel::LOG_WARN);
     return;
   }
   if (externalRecvCallback)
     externalRecvCallback(msg);
+
+  // Broadcast: also relay so multi-hop nodes receive it (Task 3 test covers this)
+  if (isBroadcastTarget && !isMaster) {
+    relayDownlink(msg);
+  }
 }
 
 void Mesh::relayDownlink(const mesh_message& msg) {

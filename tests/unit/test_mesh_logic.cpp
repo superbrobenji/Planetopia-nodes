@@ -215,3 +215,95 @@ TEST_F(RelayDownlinkTest, SkipsSelf_WhenSelfInPeerList) {
   EXPECT_EQ(espNowSentPackets.size(), 1u);
   EXPECT_EQ(memcmp(espNowSentPackets[0].addr, kPeer1Mac, 6), 0);
 }
+
+// ─── processAdapterData: uplink relay ────────────────────────────────────────
+
+class AdapterDataRelayTest : public ::testing::Test {
+protected:
+  void SetUp() override {
+    EEPROM.reset();
+    resetMillis();
+    resetEspNowMock();
+  }
+
+  static constexpr uint8_t kMyMac[6]     = {0x11,0x22,0x33,0x44,0x55,0x66};
+  static constexpr uint8_t kMasterMac[6] = {0xAA,0xBB,0xCC,0xDD,0xEE,0x01};
+  static constexpr uint8_t kSensorMac[6] = {0x77,0x88,0x99,0xAA,0xBB,0xCC};
+  static constexpr uint8_t kPeerMac[6]   = {0x55,0x55,0x55,0x55,0x55,0x55};
+
+  Mesh makeIntermediateNode() {
+    Mesh mesh;
+    memcpy(mesh.deviceMacAddress, kMyMac, 6);
+    mesh.isMaster = false;
+    // Set master route: next hop IS the master (1 hop away)
+    memcpy(mesh.currentMaster.mac,     kMasterMac, 6);
+    memcpy(mesh.currentMaster.nextHop, kMasterMac, 6);
+    mesh.currentMaster.distance = 1;
+    mesh.hasMasterMac = true;
+    memcpy(mesh.knownMasterMac, kMasterMac, 6);
+    // Register master as enrolled peer (required for sendMessage + isPeerInRange)
+    PeerInfo p{}; memcpy(p.mac, kMasterMac, 6); p.lastSeenMillis = 0; mesh.appendPeer(p);
+    return mesh;
+  }
+
+  mesh_message makeUplinkMsg(uint32_t epoch, uint16_t seq, uint8_t hopCount = 1) {
+    mesh_message m{};
+    m.protoVersion = 1;
+    m.messageType  = MESH_TYPE_ADAPTER_DATA;
+    m.dataType     = adapter_types::PIR_ADAPTER;
+    memcpy(m.originMacAddress,  kSensorMac,  6);
+    memcpy(m.targetMacAddress,  kMasterMac,  6);  // addressed to master
+    memcpy(m.lastHopMacAddress, kSensorMac,  6);
+    m.hopCount = hopCount;
+    m.epochNum = epoch;
+    m.seqNum   = seq;
+    return m;
+  }
+};
+
+constexpr uint8_t AdapterDataRelayTest::kMyMac[];
+constexpr uint8_t AdapterDataRelayTest::kMasterMac[];
+constexpr uint8_t AdapterDataRelayTest::kSensorMac[];
+constexpr uint8_t AdapterDataRelayTest::kPeerMac[];
+
+TEST_F(AdapterDataRelayTest, IntermediateNode_RelaysUplinkTowardMaster) {
+  Mesh mesh = makeIntermediateNode();
+  auto msg  = makeUplinkMsg(1, 1, /*hopCount=*/1);
+
+  size_t before = espNowSentPackets.size();
+  mesh.processAdapterData(msg);
+
+  EXPECT_EQ(espNowSentPackets.size(), before + 1);
+  const auto& sent = *reinterpret_cast<const mesh_message*>(
+      espNowSentPackets.back().data.data());
+  EXPECT_EQ(sent.hopCount, 2u);                              // incremented
+  EXPECT_EQ(memcmp(espNowSentPackets.back().addr, kMasterMac, 6), 0); // routed via nextHop
+}
+
+TEST_F(AdapterDataRelayTest, IntermediateNode_DropsUplinkReplay) {
+  Mesh mesh = makeIntermediateNode();
+  auto msg  = makeUplinkMsg(1, 7);
+
+  mesh.processAdapterData(msg);  // first — relayed
+  size_t after1 = espNowSentPackets.size();
+
+  mesh.processAdapterData(msg);  // same epoch+seq — replay, dropped
+  EXPECT_EQ(espNowSentPackets.size(), after1);
+}
+
+TEST_F(AdapterDataRelayTest, Master_DoesNotRelayUplink_DeliversLocally) {
+  Mesh mesh = makeIntermediateNode();
+  mesh.isMaster = true;
+
+  bool callbackFired = false;
+  mesh.linkDataRecvCallback([&](mesh_message) { callbackFired = true; });
+
+  auto msg = makeUplinkMsg(1, 1);
+  memcpy(msg.targetMacAddress, mesh.deviceMacAddress, 6); // addressed to self (master)
+
+  size_t before = espNowSentPackets.size();
+  mesh.processAdapterData(msg);
+
+  EXPECT_TRUE(callbackFired);
+  EXPECT_EQ(espNowSentPackets.size(), before); // no relay
+}
