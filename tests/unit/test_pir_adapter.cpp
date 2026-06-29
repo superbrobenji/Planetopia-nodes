@@ -129,6 +129,7 @@ TEST_F(PIRHealthTest, UptimeReflectsActualMillis) {
 
   // Simulate 2 minutes elapsed
   advanceMillis(120001);
+  // Single loop() call fires once at the first threshold; uptime = millis() / 1000 at send time.
   pir->loop();
 
   ASSERT_EQ(txCallCount, 1);
