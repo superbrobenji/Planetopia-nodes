@@ -789,9 +789,7 @@ bool Mesh::meshKeyIsSet() const {
 
 void Mesh::broadcastAdapterData(adapter_types type, const uint8_t data[12]) {
   mesh_message msg = buildMessage(type, data, MESH_TYPE_ADAPTER_DATA);
-  // Broadcast: set target to FF:FF:... and hopCount=0
-  memset(msg.targetMacAddress, 0xFF, 6);
-  msg.hopCount = 0;
+  memset(msg.targetMacAddress, 0xFF, 6); // broadcast indicator — relayed by intermediate nodes
   broadcastToAllPeers(msg);
 }
 
