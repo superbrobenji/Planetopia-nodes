@@ -1076,9 +1076,11 @@ void Mesh::processEnrollmentRequest(const mesh_message& msg) {
 }
 
 void Mesh::processJoinAck(const mesh_message& msg) {
-  // Verify the ack is addressed to us
-  if (memcmp(msg.targetMacAddress, deviceMacAddress, 6) != 0)
+  // Relay outward if not addressed to us (multi-hop enrollment)
+  if (memcmp(msg.targetMacAddress, deviceMacAddress, 6) != 0) {
+    relayDownlink(msg);
     return;
+  }
   // Verify fingerprint matches our public key (first 4 bytes)
   if (memcmp(msg.data, devicePublicKey, 4) != 0) {
     Logger::logln("MESH", "JOIN_ACK fingerprint mismatch — ignoring", LogLevel::LOG_WARN);

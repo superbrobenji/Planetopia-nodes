@@ -119,7 +119,7 @@ bool Mesh::setupEspNow() { return true; }
 void Mesh::loadPersistentState() {}
 
 void Mesh::processEnrollmentRequest(const mesh_message&) {}
-void Mesh::processJoinAck(const mesh_message&) {}
+// processJoinAck is implemented in mesh_logic_impl.cpp (real logic)
 
 void Mesh::loadOrGenerateKeypair() {}
 // isReplay and processMasterBeacon are implemented in mesh_logic_impl.cpp (real logic)

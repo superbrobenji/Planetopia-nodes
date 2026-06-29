@@ -127,6 +127,29 @@ void Mesh::relayDownlink(const mesh_message& msg) {
   }
 }
 
+void Mesh::processJoinAck(const mesh_message& msg) {
+  // Relay outward if not addressed to us (multi-hop enrollment)
+  if (memcmp(msg.targetMacAddress, deviceMacAddress, 6) != 0) {
+    relayDownlink(msg);
+    return;
+  }
+  // Verify fingerprint matches our public key (first 4 bytes)
+  if (memcmp(msg.data, devicePublicKey, 4) != 0) {
+    Logger::logln("MESH", "JOIN_ACK fingerprint mismatch — ignoring", LogLevel::LOG_WARN);
+    return;
+  }
+  Logger::logln("MESH", "Enrollment approved! Saving enrolled flag.", LogLevel::LOG_INFO);
+  EEPROM_Manager::getInstance().saveEnrolledFlag(true);
+
+  // The node sending JOIN_ACK is the master — record its MAC (TOFU)
+  if (!hasMasterMac) {
+    memcpy(knownMasterMac, msg.originMacAddress, 6);
+    hasMasterMac = true;
+    EEPROM_Manager::getInstance().saveKnownMasterMac(knownMasterMac);
+    Logger::logln("MESH", "Master MAC learned and saved (TOFU)", LogLevel::LOG_INFO);
+  }
+}
+
 void Mesh::transmitCore(const adapter_types type, const uint8_t data[12], MeshMessageType msgType,
                         const mesh_message* msgOverride) {
   mesh_message msg;
