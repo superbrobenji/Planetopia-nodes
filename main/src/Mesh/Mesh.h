@@ -51,7 +51,7 @@ struct __attribute__((packed)) mesh_message {
   uint16_t seqNum;                 // Per-boot message counter (replay protection)
   uint8_t enrollmentPublicKey[32]; // Curve25519 key; zero for non-enrollment messages
 };
-// 1+1+4+6+6+6+12+1+4+2+32 = 75 bytes (adapter_types is int32_t = 4B, packed)
+// 1+1+4+6+6+6+64+1+4+2+32 = 127 bytes (adapter_types is int32_t = 4B, packed)
 static_assert(sizeof(mesh_message) == 127, "mesh_message size changed — update server proto");
 
 // Peer info struct for RAM and EEPROM storage
