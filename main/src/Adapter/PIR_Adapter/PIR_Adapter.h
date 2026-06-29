@@ -35,9 +35,11 @@ private:
   bool _motionSent;
   bool _interruptEnabled;
   bool _initialized;
+  uint32_t _lastHealthMillis;
 
   static PIR_Adapter* instance;
   void detectMotion();
+  static void sendNodeHealth();
 };
 
 } // namespace adapter
