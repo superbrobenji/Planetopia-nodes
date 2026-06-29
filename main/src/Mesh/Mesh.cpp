@@ -660,7 +660,8 @@ void Mesh::transmitCore(const adapter_types type, const uint8_t data[12], MeshMe
 
   // Only for adapter data, set target as master
   if (msgType == MESH_TYPE_ADAPTER_DATA) {
-    memcpy(msg.targetMacAddress, currentMaster.mac, 6); // authoritative: overrides relay's original target
+    memcpy(msg.targetMacAddress, currentMaster.mac,
+           6); // authoritative: overrides relay's original target
   }
 
   // Routing: always use next hop if possible
@@ -920,17 +921,18 @@ void Mesh::processMasterBeacon(const mesh_message& msg) {
 
 void Mesh::processAdapterData(const mesh_message& msg) {
   static constexpr uint8_t OP_CONFIG_SET = 0xA0;
-  static const uint8_t kBroadcastMac[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+  static const uint8_t kBroadcastMac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-  bool addressedToSelf    = (memcmp(msg.targetMacAddress, deviceMacAddress, 6) == 0);
-  bool isBroadcastTarget  = (memcmp(msg.targetMacAddress, kBroadcastMac,    6) == 0);
-  bool addressedToMaster  = hasMasterMac &&
-                            (memcmp(msg.targetMacAddress, currentMaster.mac, 6) == 0);
+  bool addressedToSelf = (memcmp(msg.targetMacAddress, deviceMacAddress, 6) == 0);
+  bool isBroadcastTarget = (memcmp(msg.targetMacAddress, kBroadcastMac, 6) == 0);
+  bool addressedToMaster =
+      hasMasterMac && (memcmp(msg.targetMacAddress, currentMaster.mac, 6) == 0);
 
   if (!isMaster && !addressedToSelf && !isBroadcastTarget) {
     if (addressedToMaster) {
       // Uplink: relay toward master via routing table
-      if (msg.hopCount >= planetopia::config::MAX_HOPS) return;
+      if (msg.hopCount >= planetopia::config::MAX_HOPS)
+        return;
       mesh_message relay = msg;
       relay.hopCount++;
       memcpy(relay.lastHopMacAddress, deviceMacAddress, 6);
@@ -943,10 +945,9 @@ void Mesh::processAdapterData(const mesh_message& msg) {
   }
 
   // Local delivery
-  bool isConfigOpcode = (msg.dataType == adapter_types::SERIAL_ADAPTER &&
-                         msg.data[0] == OP_CONFIG_SET);
-  if (isConfigOpcode && hasMasterMac &&
-      memcmp(msg.originMacAddress, knownMasterMac, 6) != 0) {
+  bool isConfigOpcode =
+      (msg.dataType == adapter_types::SERIAL_ADAPTER && msg.data[0] == OP_CONFIG_SET);
+  if (isConfigOpcode && hasMasterMac && memcmp(msg.originMacAddress, knownMasterMac, 6) != 0) {
     Logger::logln("MESH", "CONFIG_SET from non-master MAC rejected", LogLevel::LOG_WARN);
     return;
   }
@@ -964,12 +965,14 @@ void Mesh::processAdapterData(const mesh_message& msg) {
 }
 
 void Mesh::relayDownlink(const mesh_message& msg) {
-  if (msg.hopCount >= planetopia::config::MAX_HOPS) return;
+  if (msg.hopCount >= planetopia::config::MAX_HOPS)
+    return;
   mesh_message relay = msg;
   relay.hopCount++;
   memcpy(relay.lastHopMacAddress, deviceMacAddress, 6);
   for (size_t i = 0; i < peerCount; ++i) {
-    if (memcmp(peerMacs[i].mac, deviceMacAddress, 6) == 0) continue;
+    if (memcmp(peerMacs[i].mac, deviceMacAddress, 6) == 0)
+      continue;
     sendMessage(peerMacs[i].mac, relay);
   }
 }
