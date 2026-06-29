@@ -400,6 +400,14 @@ protected:
   static constexpr uint8_t kDistantNode[6] = {0x99,0x88,0x77,0x66,0x55,0x44};
   static constexpr uint8_t kPeerMac[6]     = {0x33,0x33,0x33,0x33,0x33,0x33};
 
+  Mesh makeIntermediateNode() {
+    Mesh mesh;
+    memcpy(mesh.deviceMacAddress, kMyMac, 6);
+    mesh.isMaster = false; // explicit defensive guard
+    PeerInfo p{}; memcpy(p.mac, kPeerMac, 6); p.lastSeenMillis = 0; mesh.appendPeer(p);
+    return mesh;
+  }
+
   mesh_message makeJoinAck(const uint8_t target[6], uint8_t hopCount = 1) {
     mesh_message m{};
     m.protoVersion = 1;
@@ -421,9 +429,7 @@ constexpr uint8_t JoinAckRelayTest::kDistantNode[];
 constexpr uint8_t JoinAckRelayTest::kPeerMac[];
 
 TEST_F(JoinAckRelayTest, RelaysJoinAck_WhenNotAddressedToSelf) {
-  Mesh mesh;
-  memcpy(mesh.deviceMacAddress, kMyMac, 6);
-  PeerInfo p{}; memcpy(p.mac, kPeerMac, 6); p.lastSeenMillis = 0; mesh.appendPeer(p);
+  Mesh mesh = makeIntermediateNode();
 
   auto msg = makeJoinAck(kDistantNode); // addressed to a distant node, not me
 
@@ -431,20 +437,16 @@ TEST_F(JoinAckRelayTest, RelaysJoinAck_WhenNotAddressedToSelf) {
   mesh.processJoinAck(msg);
 
   EXPECT_GT(espNowSentPackets.size(), before); // relayed to kPeerMac
-  if (espNowSentPackets.size() > before) {
-    EXPECT_EQ(memcmp(espNowSentPackets.back().addr, kPeerMac, 6), 0);
-    const auto& sent = *reinterpret_cast<const mesh_message*>(
-        espNowSentPackets.back().data.data());
-    EXPECT_EQ(sent.hopCount, 2u);
-    EXPECT_EQ(memcmp(sent.targetMacAddress, kDistantNode, 6), 0); // target preserved
-  }
+  EXPECT_EQ(memcmp(espNowSentPackets.back().addr, kPeerMac, 6), 0);
+  const auto& sent = *reinterpret_cast<const mesh_message*>(
+      espNowSentPackets.back().data.data());
+  EXPECT_EQ(sent.hopCount, 2u);
+  EXPECT_EQ(memcmp(sent.targetMacAddress, kDistantNode, 6), 0); // target preserved
 }
 
 TEST_F(JoinAckRelayTest, DoesNotRelayJoinAck_WhenAddressedToSelf) {
   // When addressed to self: process (enroll), do NOT relay
-  Mesh mesh;
-  memcpy(mesh.deviceMacAddress, kMyMac, 6);
-  PeerInfo p{}; memcpy(p.mac, kPeerMac, 6); p.lastSeenMillis = 0; mesh.appendPeer(p);
+  Mesh mesh = makeIntermediateNode();
 
   // Provide a fingerprint (first 4 bytes of devicePublicKey)
   // devicePublicKey is zeroed in constructor — fingerprint = {0,0,0,0}
@@ -458,9 +460,7 @@ TEST_F(JoinAckRelayTest, DoesNotRelayJoinAck_WhenAddressedToSelf) {
 }
 
 TEST_F(JoinAckRelayTest, DropsJoinAckRelay_WhenReplay) {
-  Mesh mesh;
-  memcpy(mesh.deviceMacAddress, kMyMac, 6);
-  PeerInfo p{}; memcpy(p.mac, kPeerMac, 6); p.lastSeenMillis = 0; mesh.appendPeer(p);
+  Mesh mesh = makeIntermediateNode();
 
   auto msg = makeJoinAck(kDistantNode);
 
