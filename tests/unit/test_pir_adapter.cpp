@@ -173,7 +173,6 @@ TEST_F(PIRHealthTest, OpNodeIdSet_AssignsNodeId_WhenTargetMatchesMac) {
 }
 
 TEST_F(PIRHealthTest, OpNodeIdSet_IgnoresMessage_WhenTargetMismatch) {
-  EEPROM.reset();
   PIR_Adapter* pir = new PIR_Adapter(2);
   pir->setTransmitFn([](adapter_types, const uint8_t[64]) {});
 
