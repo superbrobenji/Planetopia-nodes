@@ -260,7 +260,7 @@ TEST_F(EEPROMMgrTest, NodeId_SaveZeroRoundtrips) {
 // TOFU secondary master MAC (EEPROM layout v3)
 // -----------------------------------------------------------------------
 
-TEST_F(EEPROMMgrTest, KnownMasterMacSecondary_UnsetReturnsAlFalse) {
+TEST_F(EEPROMMgrTest, KnownMasterMacSecondary_UnsetReturnsFalse) {
   auto& mgr = EEPROM_Manager::getInstance();
   mgr.init();
   uint8_t mac[6] = {};

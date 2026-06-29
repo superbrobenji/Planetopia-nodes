@@ -100,7 +100,7 @@ bool EEPROM_Manager::init() {
       Logger::logln("EEPROM", "v1→v2 migration complete", LogLevel::LOG_INFO);
     }
     if (storedVersion <= 2) {
-      // v2→v3 migration: zero-fill the new secondary master MAC slot
+      // v2→v3 migration: initialise the new secondary master MAC slot to 0xFF (unset sentinel)
       Logger::logln("EEPROM", "v2→v3 migration: initialising secondary master MAC slot", LogLevel::LOG_INFO);
       for (uint16_t i = 0; i < 6; ++i) {
         EEPROM.write(EEPROM_ADDRESSES::KNOWN_MASTER_MAC_SECONDARY + i, 0xFF);
@@ -530,7 +530,7 @@ void EEPROM_Manager::clearKnownMasterMacSecondary() {
     return;
   for (int i = 0; i < 6; ++i)
     EEPROM.write(EEPROM_ADDRESSES::KNOWN_MASTER_MAC_SECONDARY + i, 0xFF);
-  markDirty();
+  EEPROM.commit(); // TOFU security anchor must survive power loss
 }
 
 // TX power preset operations
