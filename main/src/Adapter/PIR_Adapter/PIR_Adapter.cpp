@@ -1,8 +1,11 @@
 #include "PIR_Adapter.h"
 #include <cstdint>
+#include <cstring>
 #include "src/core/Logger.h"
 #include "src/error/Error.h"
 #include "src/Mesh/Mesh.h"
+#include "src/Adapter/AdapterFactory.h"
+#include <esp_wifi.h>
 
 namespace planetopia {
 namespace adapter {
@@ -13,7 +16,7 @@ PIR_Adapter* PIR_Adapter::instance = nullptr;
 
 PIR_Adapter::PIR_Adapter(int pin)
     : Adapter(pin), _pir(pin), _cooldownSeconds(3), _lastTrigger(0), _timerActive(false),
-      _motionSent(false), _interruptEnabled(false), _initialized(false) {
+      _motionSent(false), _interruptEnabled(false), _initialized(false), _lastHealthMillis(0) {
   _adapterType = adapter_types::PIR_ADAPTER;
 }
 
@@ -58,6 +61,26 @@ void PIR_Adapter::detectMotion() {
   _pir.detachInterrupt();
 }
 
+static void readOwnMac(uint8_t out[6]) {
+  esp_wifi_get_mac(WIFI_IF_STA, out);
+}
+
+void PIR_Adapter::sendNodeHealth() {
+  uint8_t data[64] = {0};
+  data[0] = 0xB2; // OP_NODE_HEALTH
+  data[1] = AdapterFactory::adapterTypeToEEPROM(adapter_types::PIR_ADAPTER);
+  uint8_t mac[6];
+  readOwnMac(mac);
+  memcpy(&data[2], mac, 6);
+  uint32_t uptimeSec = millis() / 1000;
+  data[8] = static_cast<uint8_t>(uptimeSec & 0xFF);
+  data[9] = static_cast<uint8_t>((uptimeSec >> 8) & 0xFF);
+  data[10] = static_cast<uint8_t>((uptimeSec >> 16) & 0xFF);
+  data[11] = static_cast<uint8_t>((uptimeSec >> 24) & 0xFF);
+  if (instance)
+    instance->sendDataThroughMesh(adapter_types::SERIAL_ADAPTER, data);
+}
+
 void PIR_Adapter::loop() {
   if (!_initialized)
     return;
@@ -90,6 +113,11 @@ void PIR_Adapter::loop() {
       return;
     }
     _interruptEnabled = true;
+  }
+
+  if (now - _lastHealthMillis >= planetopia::config::HEALTH_REPORT_INTERVAL_MS) {
+    _lastHealthMillis = now;
+    sendNodeHealth();
   }
 }
 
