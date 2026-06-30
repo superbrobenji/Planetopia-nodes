@@ -8,7 +8,7 @@ updates:
       - dependencies
       - ci
 
-  - package-ecosystem: git-submodules
+  - package-ecosystem: gitsubmodule
     directory: /
     schedule:
       interval: weekly
