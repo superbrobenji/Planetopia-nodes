@@ -10,14 +10,17 @@ from typing import Optional
 
 BAUD_RATE = 115200
 
-# Serial opcodes (must match firmware)
-OP_CONFIG_SET         = 0xA0
+# Serial opcodes (must match planetopia-protocol/c/opcodes.h)
+OP_NODE_ID_SET        = 0xC0
+OP_CONFIG_SET         = 0xC1
+OP_TX_POWER_SET       = 0xC2
 OP_HEALTH_REQ         = 0xB0
 OP_HEALTH_REPORT      = 0xB1
-OP_ENROLLMENT_REQ     = 0xC0
-OP_ENROLLMENT_APPROVE = 0xC1
-OP_ENROLLMENT_REJECT  = 0xC2
-OP_TX_POWER_SET       = 0xA1
+OP_LED_SOLID          = 0xD0
+OP_LED_OFF            = 0xD1
+OP_LED_BLINK          = 0xD2
+OP_RELAY_SET          = 0xD8
+OP_COMMAND_ACK        = 0xE0
 
 
 def write_frame(port: serial.Serial, payload: bytes) -> None:
@@ -87,6 +90,7 @@ class Node:
         return bytes.fromhex(hex_str) if len(hex_str) == 64 else None
 
     def send_enrollment_approve(self, mac: bytes, pub_key: bytes) -> None:
-        """Send OP_ENROLLMENT_APPROVE frame: [C1][6B mac][32B pubkey]"""
-        assert len(mac) == 6 and len(pub_key) == 32
-        self.send_opcode(OP_ENROLLMENT_APPROVE, mac + pub_key)
+        # TODO: enrollment approval is now handled by the server HTTP API
+        # (POST /v1/enrollments/{mac}/approve). This raw-frame approach is stale.
+        # Update test_enrollment.py to use the HTTP API instead.
+        raise NotImplementedError("use the server HTTP API to approve enrollment")

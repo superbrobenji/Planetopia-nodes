@@ -175,11 +175,11 @@ TEST(NanopbCodec, JoinAckDecode_PreservesOriginMac) {
     EXPECT_EQ(dec.public_key.bytes[i], 0xAB) << "public_key.bytes[" << i << "]";
 }
 
-// --- sint32 zigzag: UNKNOWN_ADAPTER = -1 survives round-trip ---
+// --- sint32 zigzag: negative value survives round-trip (UNKNOWN_ADAPTER is now 0) ---
 TEST(NanopbCodec, ZigZag_UnknownAdapter) {
   mesh_MeshMessage enc = mesh_MeshMessage_init_zero;
   enc.messageType = 0;
-  enc.dataType    = -1;  // UNKNOWN_ADAPTER
+  enc.dataType    = -1;  // test negative sint32 zigzag encoding
   enc.has_data    = true;
   enc.data.size   = 12;
   memset(enc.data.bytes, 0, 12);

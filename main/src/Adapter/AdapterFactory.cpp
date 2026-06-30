@@ -93,8 +93,6 @@ int AdapterFactory::getDefaultPinForAdapter(adapter_types type) {
   switch (type) {
   case adapter_types::PIR_ADAPTER:
     return PIR_ADAPTER_DEFAULT_PIN;
-  case adapter_types::WIFI_ADAPTER:
-    return WIFI_ADAPTER_DEFAULT_PIN;
   case adapter_types::LED_ADAPTER:
     return LED_ADAPTER_DEFAULT_PIN;
   case adapter_types::SERIAL_ADAPTER:

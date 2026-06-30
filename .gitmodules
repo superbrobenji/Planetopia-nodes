@@ -1,0 +1,3 @@
+[submodule "main/lib/planetopia-protocol"]
+	path = main/lib/planetopia-protocol
+	url = https://github.com/superbrobenji/planetopia-protocol
