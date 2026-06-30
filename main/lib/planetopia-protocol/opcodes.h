@@ -1,5 +1,5 @@
 /* Copied from: planetopia-protocol/c/opcodes.h
- * Source repo: https://github.com/benjaminswanepoel/planetopia-protocol
+ * Source repo: https://github.com/superbrobenji/planetopia-protocol
  * Keep in sync with that repo — do not edit values here directly.
  * For production, set up a git submodule or CI step to keep this file current. */
 

@@ -15,11 +15,11 @@ namespace adapter {
 
 // Enum for identifying adapter types
 enum class adapter_types : int32_t {
-  UNKNOWN_ADAPTER = -1,
-  PIR_ADAPTER = 0,
-  WIFI_ADAPTER = 1,
-  LED_ADAPTER = 2,
-  SERIAL_ADAPTER = 3
+  UNKNOWN_ADAPTER = 0,
+  SERIAL_ADAPTER = 1,
+  PIR_ADAPTER = 2,
+  LED_ADAPTER = 3,
+  RELAY_ADAPTER = 4,
 };
 
 // Abstract base class for all adapters

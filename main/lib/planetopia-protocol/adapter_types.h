@@ -1,11 +1,10 @@
 /* Copied from: planetopia-protocol/c/adapter_types.h
- * Source repo: https://github.com/benjaminswanepoel/planetopia-protocol
+ * Source repo: https://github.com/superbrobenji/planetopia-protocol
  * Keep in sync with that repo — do not edit values here directly.
  * For production, set up a git submodule or CI step to keep this file current.
  *
- * NOTE: These wire-protocol identifiers are distinct from the C++ adapter_types enum
- * in src/Adapter/Adapter.h. The C++ enum uses different int32_t values for internal
- * routing; these defines are the canonical wire-level identifiers used in mesh frames. */
+ * NOTE: These wire-protocol identifiers match the C++ adapter_types enum
+ * in src/Adapter/Adapter.h — both use the same int32_t values. */
 
 #pragma once
 

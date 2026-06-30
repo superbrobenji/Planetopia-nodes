@@ -57,8 +57,8 @@ TEST_F(PIRHealthTest, SendsNodeHealthAfter30s) {
 
   // data[0]: opcode 0xB2
   EXPECT_EQ(lastTxData[0], 0xB2u);
-  // data[1]: adapterTypeToEEPROM(PIR_ADAPTER) == 0
-  EXPECT_EQ(lastTxData[1], 0x00u);
+  // data[1]: adapterTypeToEEPROM(PIR_ADAPTER) == 2 (matches shared protocol ADAPTER_TYPE_PIR)
+  EXPECT_EQ(lastTxData[1], 0x02u);
   // data[2..7]: mockDeviceMac default {0xAA,0xBB,0xCC,0xDD,0xEE,0xFF}
   const uint8_t expectedMac[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
   EXPECT_EQ(memcmp(&lastTxData[2], expectedMac, 6), 0);
