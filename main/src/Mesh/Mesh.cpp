@@ -8,7 +8,7 @@
 #include <WiFi.h>
 #include <cstring>
 #include "../../project_config.h"
-#include "lib/planetopia-protocol/opcodes.h"
+#include "lib/planetopia-protocol/c/opcodes.h"
 #include <mbedtls/ecdh.h>
 #include <mbedtls/entropy.h>
 #include <mbedtls/ctr_drbg.h>

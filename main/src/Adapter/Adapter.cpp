@@ -5,7 +5,7 @@
 #include "src/Adapter/AdapterFactory.h"
 #include "src/Adapter/Serial_Adapter/Serial_Adapter.h"
 #include "src/persistence/EEPROM_Manager.h"
-#include "lib/planetopia-protocol/opcodes.h"
+#include "lib/planetopia-protocol/c/opcodes.h"
 #include <esp_wifi.h>
 #include <cstring>
 

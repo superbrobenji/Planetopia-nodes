@@ -6,10 +6,9 @@
 #include "src/Mesh/serialization/nanopb/pb_encode.h"
 #include "src/Mesh/serialization/nanopb/pb_decode.h"
 #include "src/Mesh/serialization/mesh.pb.h"
-// Shared protocol constants — source of truth is planetopia-protocol repo
-#include "lib/planetopia-protocol/opcodes.h"
-// Wire-level adapter type identifiers (distinct from the C++ adapter_types enum in Adapter.h)
-#include "lib/planetopia-protocol/adapter_types.h"
+// Shared protocol constants — source of truth is planetopia-protocol repo (git submodule)
+#include "lib/planetopia-protocol/c/opcodes.h"
+#include "lib/planetopia-protocol/c/adapter_types.h"
 
 namespace planetopia {
 namespace adapter {
