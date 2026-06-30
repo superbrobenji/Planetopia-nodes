@@ -32,7 +32,7 @@ public:
   //   OP_COMMAND_ACK   0xE0  [E0][1B commandId]
 
   // Health opcodes — Serial_Adapter internal only, not in shared protocol
-  static constexpr uint8_t OP_HEALTH_REQ    = 0xB0; // [B0]
+  static constexpr uint8_t OP_HEALTH_REQ = 0xB0;    // [B0]
   static constexpr uint8_t OP_HEALTH_REPORT = 0xB1; // [B1][1B adapterType][6B mac][4B uptime]
 
   // Relay a completed enrollment public key to the server over serial
@@ -41,7 +41,8 @@ public:
 #if SIMULATE_MODE
   // WARNING: SIMULATE_MODE opcodes 0xD0-0xD2 overlap with OP_LED_SOLID/OFF/BLINK from the
   // shared protocol. SIMULATE_MODE must never be enabled alongside LED output handling.
-  static constexpr uint8_t OP_SIM_PIR_TRIGGER = 0xD0; // Inject fake PIR event (conflicts with OP_LED_SOLID when SIMULATE_MODE=1)
+  static constexpr uint8_t OP_SIM_PIR_TRIGGER =
+      0xD0; // Inject fake PIR event (conflicts with OP_LED_SOLID when SIMULATE_MODE=1)
   static constexpr uint8_t OP_SIM_FAKE_BEACON =
       0xD1; // Inject fake master beacon [D1][6B mac][4B epoch][2B seq]
   static constexpr uint8_t OP_SIM_FAKE_PEER = 0xD2;  // Inject fake peer [D2][6B mac][32B pubkey]

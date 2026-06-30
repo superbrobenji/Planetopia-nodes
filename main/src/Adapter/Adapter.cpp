@@ -97,7 +97,8 @@ void Adapter::onMeshData(const planetopia::mesh::mesh_message& message) {
   // No RGB LED driver is currently implemented in firmware — these are logged stubs.
   // TODO: When an LED adapter (e.g. NeoPixel/WS2812) is wired up, replace the Logger
   // calls below with the appropriate driver calls (e.g. ledStrip.setPixelColor(r, g, b)).
-  if (message.dataType == adapter_types::LED_ADAPTER && _adapterType == adapter_types::LED_ADAPTER) {
+  if (message.dataType == adapter_types::LED_ADAPTER &&
+      _adapterType == adapter_types::LED_ADAPTER) {
     const uint8_t op = message.data[0];
     if (op == OP_LED_SOLID) {
       uint8_t r = message.data[1];
@@ -125,7 +126,8 @@ void Adapter::onMeshData(const planetopia::mesh::mesh_message& message) {
       ackData[1] = op;
       sendDataThroughMesh(adapter_types::SERIAL_ADAPTER, ackData);
     } else if (op == OP_RELAY_SET) {
-      Logger::logln("ADAPTER", "OP_RELAY_SET received on LED_ADAPTER (unexpected)", LogLevel::LOG_WARN);
+      Logger::logln("ADAPTER", "OP_RELAY_SET received on LED_ADAPTER (unexpected)",
+                    LogLevel::LOG_WARN);
     }
     return;
   }
