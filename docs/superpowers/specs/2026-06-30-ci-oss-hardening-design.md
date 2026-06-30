@@ -107,7 +107,7 @@ updates:
       interval: weekly
     labels: [dependencies, ci]
 
-  - package-ecosystem: git-submodules
+  - package-ecosystem: gitsubmodule
     directory: /
     schedule:
       interval: weekly
