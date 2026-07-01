@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include "GpioOutput.h"
 
-namespace planetopia {
+namespace lattice {
 namespace hardware {
 
 class SevenSegDisplay {
@@ -37,6 +37,6 @@ private:
 };
 
 } // namespace hardware
-} // namespace planetopia
+} // namespace lattice
 
 #endif

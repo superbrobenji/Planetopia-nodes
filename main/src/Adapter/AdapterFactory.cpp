@@ -6,10 +6,10 @@
 #include "src/Adapter/PIR_Adapter/PIR_Adapter.h"
 #include "src/Adapter/Serial_Adapter/Serial_Adapter.h"
 
-namespace planetopia {
+namespace lattice {
 namespace adapter {
 
-using namespace planetopia::utils;
+using namespace lattice::utils;
 
 // Initialize class static member
 bool AdapterFactory::isDevMode_ = false;
@@ -31,9 +31,8 @@ Adapter* AdapterFactory::createAdapter(adapter_types type, int pin) {
     return new Serial_Adapter(pin);
 
   default:
-    planetopia::err::fail(planetopia::core::ErrorTypeDigit::CONFIG,
-                          planetopia::core::ModuleDigit::ADAPTER, 2,
-                          "AdapterFactory: Unknown adapter type");
+    lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::ADAPTER,
+                       2, "AdapterFactory: Unknown adapter type");
     Logger::logln("Factory", "Error: Unknown adapter type", LogLevel::LOG_ERROR);
     return nullptr;
   }
@@ -103,4 +102,4 @@ int AdapterFactory::getDefaultPinForAdapter(adapter_types type) {
 }
 
 } // namespace adapter
-} // namespace planetopia
+} // namespace lattice

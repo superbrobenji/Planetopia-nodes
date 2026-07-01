@@ -1,6 +1,6 @@
 #include "GpioOutput.h"
 
-namespace planetopia {
+namespace lattice {
 namespace hardware {
 
 GpioOutput::GpioOutput(uint8_t pin) : _pin(pin), _initialized(false) {}
@@ -46,4 +46,4 @@ bool GpioOutput::isInitialized() const {
 }
 
 } // namespace hardware
-} // namespace planetopia
+} // namespace lattice

@@ -11,7 +11,7 @@
 // Mesh.cpp is not compiled on host (it pulls in mbedtls, esp_now internals, etc.)
 // Provide minimal stubs for the symbols Serial_Adapter.cpp and Adapter.cpp reference.
 
-namespace planetopia {
+namespace lattice {
 namespace mesh {
 
 // Forward declaration matching Mesh.h types
@@ -22,7 +22,7 @@ class Mesh;
 Mesh* Mesh_instance_stub = nullptr;
 
 } // namespace mesh
-} // namespace planetopia
+} // namespace lattice
 
 // Mesh::instance — defined as a static member in Mesh.h; we need the storage
 // We can't easily stub the class here without including Mesh.h (which drags in esp_now.h etc.)
@@ -35,18 +35,18 @@ Mesh* Mesh_instance_stub = nullptr;
 // Now include Mesh.h to get the class definition
 #include "src/Mesh/Mesh.h"
 
-namespace planetopia {
+namespace lattice {
 namespace mesh {
 
 // Static member definition
 Mesh* Mesh::instance = nullptr;
 
 // transmit — static function pointer; defined as a static member
-void Mesh::transmit(const planetopia::adapter::adapter_types, const uint8_t[64]) {
+void Mesh::transmit(const lattice::adapter::adapter_types, const uint8_t*) {
   // stub: no-op in tests
 }
 
-void Mesh::broadcastAdapterDataStatic(planetopia::adapter::adapter_types, const uint8_t[64]) {
+void Mesh::broadcastAdapterDataStatic(lattice::adapter::adapter_types, const uint8_t*) {
   // stub: no-op in tests
 }
 
@@ -91,7 +91,7 @@ void Mesh::onDataSentCallback(const wifi_tx_info_t*, esp_now_send_status_t) {}
 void Mesh::IRAM_ATTR dataRecvTrampoline(const esp_now_recv_info*, const uint8_t*, int) {}
 void Mesh::IRAM_ATTR onDataRecvCallback(const esp_now_recv_info*, const uint8_t*, int) {}
 
-mesh_message Mesh::buildMessage(adapter_types, const uint8_t[64], MeshMessageType) {
+mesh_message Mesh::buildMessage(adapter_types, const uint8_t*, MeshMessageType) {
   return mesh_message{};
 }
 
@@ -134,6 +134,6 @@ void Mesh::loadOrGenerateKeypair() {}
 // drainRecvQueue are implemented in mesh_logic_impl.cpp (real logic)
 
 } // namespace mesh
-} // namespace planetopia
+} // namespace lattice
 
 // skipField is defined in ProtobufCodec.cpp with external linkage — no stub needed here.

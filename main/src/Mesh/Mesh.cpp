@@ -8,24 +8,24 @@
 #include <WiFi.h>
 #include <cstring>
 #include "../../project_config.h"
-#include "lib/planetopia-protocol/c/opcodes.h"
+#include "lib/lattice-protocol/c/opcodes.h"
 #include <mbedtls/ecdh.h>
 #include <mbedtls/entropy.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/ecp.h>
 #include <mbedtls/sha256.h>
 
-namespace planetopia {
+namespace lattice {
 namespace mesh {
 
-using namespace planetopia::utils;
+using namespace lattice::utils;
 
 Mesh* Mesh::instance = nullptr;
 
 // no longer need macEquals helper – use MacAddress equality directly
 
 // Derive a 16-byte LMK for a peer using ECDH + SHA256.
-// LMK = SHA256(ECDH_shared_secret || "planetopia-lmk")[0:16]
+// LMK = SHA256(ECDH_shared_secret || "lattice-lmk")[0:16]
 static void derivePeerLMK(const uint8_t* ownPrivateKey32, const uint8_t* peerPublicKey32,
                           uint8_t* lmk16Out) {
   mbedtls_ecdh_context ecdh;
@@ -37,20 +37,18 @@ static void derivePeerLMK(const uint8_t* ownPrivateKey32, const uint8_t* peerPub
 
   int ret = 0;
 
-  const char* pers = "planetopia_ecdh";
+  const char* pers = "lattice_ecdh";
   ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
                               reinterpret_cast<const uint8_t*>(pers), strlen(pers));
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 10,
-                           "MESH: derivePeerLMK — ctr_drbg_seed failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 10,
+                        "MESH: derivePeerLMK — ctr_drbg_seed failed");
   }
 
   ret = mbedtls_ecdh_setup(&ecdh, MBEDTLS_ECP_DP_CURVE25519);
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 11,
-                           "MESH: derivePeerLMK — ecdh_setup failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 11,
+                        "MESH: derivePeerLMK — ecdh_setup failed");
   }
 
   // Load own private key and peer public key (X coordinate only for Curve25519)
@@ -58,27 +56,24 @@ static void derivePeerLMK(const uint8_t* ownPrivateKey32, const uint8_t* peerPub
       &ecdh.MBEDTLS_PRIVATE(ctx).MBEDTLS_PRIVATE(mbed_ecdh).MBEDTLS_PRIVATE(d), ownPrivateKey32,
       32);
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 12,
-                           "MESH: derivePeerLMK — mpi_read_binary (private key) failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 12,
+                        "MESH: derivePeerLMK — mpi_read_binary (private key) failed");
   }
 
   ret = mbedtls_mpi_read_binary(
       &ecdh.MBEDTLS_PRIVATE(ctx).MBEDTLS_PRIVATE(mbed_ecdh).MBEDTLS_PRIVATE(Qp).MBEDTLS_PRIVATE(X),
       peerPublicKey32, 32);
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 13,
-                           "MESH: derivePeerLMK — mpi_read_binary (peer public key) failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 13,
+                        "MESH: derivePeerLMK — mpi_read_binary (peer public key) failed");
   }
 
   ret = mbedtls_mpi_lset(
       &ecdh.MBEDTLS_PRIVATE(ctx).MBEDTLS_PRIVATE(mbed_ecdh).MBEDTLS_PRIVATE(Qp).MBEDTLS_PRIVATE(Z),
       1);
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 14,
-                           "MESH: derivePeerLMK — mpi_lset (Qp.Z) failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 14,
+                        "MESH: derivePeerLMK — mpi_lset (Qp.Z) failed");
   }
 
   uint8_t sharedSecret[32] = {};
@@ -86,47 +81,42 @@ static void derivePeerLMK(const uint8_t* ownPrivateKey32, const uint8_t* peerPub
   ret = mbedtls_ecdh_calc_secret(&ecdh, &outLen, sharedSecret, sizeof(sharedSecret),
                                  mbedtls_ctr_drbg_random, &ctr_drbg);
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 15,
-                           "MESH: derivePeerLMK — ecdh_calc_secret failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 15,
+                        "MESH: derivePeerLMK — ecdh_calc_secret failed");
   }
 
   mbedtls_ecdh_free(&ecdh);
   mbedtls_ctr_drbg_free(&ctr_drbg);
   mbedtls_entropy_free(&entropy);
 
-  // KDF: SHA256(sharedSecret || "planetopia-lmk"), take first 16 bytes
+  // KDF: SHA256(sharedSecret || "lattice-lmk"), take first 16 bytes
   mbedtls_sha256_context sha;
   mbedtls_sha256_init(&sha);
 
   ret = mbedtls_sha256_starts(&sha, 0); // 0 = SHA-256, not SHA-224
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 16,
-                           "MESH: derivePeerLMK — sha256_starts failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 16,
+                        "MESH: derivePeerLMK — sha256_starts failed");
   }
 
   ret = mbedtls_sha256_update(&sha, sharedSecret, 32);
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 17,
-                           "MESH: derivePeerLMK — sha256_update (secret) failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 17,
+                        "MESH: derivePeerLMK — sha256_update (secret) failed");
   }
 
-  const uint8_t label[] = "planetopia-lmk";
+  const uint8_t label[] = "lattice-lmk";
   ret = mbedtls_sha256_update(&sha, label, sizeof(label) - 1);
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 18,
-                           "MESH: derivePeerLMK — sha256_update (label) failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 18,
+                        "MESH: derivePeerLMK — sha256_update (label) failed");
   }
 
   uint8_t digest[32];
   ret = mbedtls_sha256_finish(&sha, digest);
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 19,
-                           "MESH: derivePeerLMK — sha256_finish failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 19,
+                        "MESH: derivePeerLMK — sha256_finish failed");
   }
 
   mbedtls_sha256_free(&sha);
@@ -165,16 +155,15 @@ static void registerPeerWithEspNow(const uint8_t mac[6], const uint8_t* ownPriva
   info.encrypt = hasPublicKey;
   if (hasPublicKey)
     memcpy(info.lmk, lmk, 16);
-  planetopia::err::checkEsp(esp_now_add_peer(&info),
-                            planetopia::utils::ErrorType::COMMUNICATION_FAIL,
-                            "registerPeerWithEspNow: add_peer failed");
+  lattice::err::checkEsp(esp_now_add_peer(&info), lattice::utils::ErrorType::COMMUNICATION_FAIL,
+                         "registerPeerWithEspNow: add_peer failed");
 }
 
 Mesh::Mesh()
     : isMaster(false), lastBeaconMillis(0), lastMasterBeaconReceivedMs(0), bootEpoch(0),
       txSeqNum(0), replayCacheIdx(0), lastRelayedEpoch(0), lastRelayedSeqNum(0),
       hasMasterMac(false), knownMasterMacSecondary{}, hasMasterMacSecondary(false),
-      _dualMasterMode(planetopia::config::DUAL_MASTER_MODE), peerCount(0), recvQueueHead(0),
+      _dualMasterMode(lattice::config::DUAL_MASTER_MODE), peerCount(0), recvQueueHead(0),
       recvQueueTail(0), lastBeaconMs(0), relayPending(false), relayPendingAt(0) {
   instance = this;
   memset(currentMaster.mac, 0, 6);
@@ -202,20 +191,18 @@ bool Mesh::appendPeer(const PeerInfo& peer) {
 void Mesh::readMacAddress() {
   esp_err_t ret = esp_wifi_get_mac(WIFI_IF_STA, deviceMacAddress);
   if (ret != ESP_OK) {
-    planetopia::err::fail(
-        planetopia::core::ErrorTypeDigit::HARDWARE, planetopia::core::ModuleDigit::MESH, 1,
+    lattice::err::fail(
+        lattice::core::ErrorTypeDigit::HARDWARE, lattice::core::ModuleDigit::MESH, 1,
         (String("MESH: Failed to read MAC address: ") + esp_err_to_name(ret)).c_str());
   } else {
     Logger::log("MESH", "Device MAC: ", LogLevel::LOG_DEBUG);
-    Logger::logln("MESH", planetopia::utils::MacAddress(deviceMacAddress).toString(),
+    Logger::logln("MESH", lattice::utils::MacAddress(deviceMacAddress).toString(),
                   LogLevel::LOG_DEBUG);
   }
 }
 
 void Mesh::printMeshMessage(const mesh_message& msg) {
-  auto macToStr = [](const uint8_t mac[6]) {
-    return planetopia::utils::MacAddress(mac).toString();
-  };
+  auto macToStr = [](const uint8_t mac[6]) { return lattice::utils::MacAddress(mac).toString(); };
 
   Logger::logln("MESH", "------ Mesh Message ------", LogLevel::LOG_DEBUG);
   Logger::logln("MESH", "Origin:    " + macToStr(msg.originMacAddress), LogLevel::LOG_DEBUG);
@@ -274,9 +261,9 @@ void Mesh::loadPeersFromEEPROM() {
   // Fallback in dev mode or when list is empty
   if (peerCount == 0) {
     Logger::logln("MESH", "Peer list empty; loading defaults from config", LogLevel::LOG_INFO);
-    for (int i = 0; i < planetopia::config::NUM_DEFAULT_PEERS; ++i) {
+    for (int i = 0; i < lattice::config::NUM_DEFAULT_PEERS; ++i) {
       PeerInfo peer;
-      memcpy(peer.mac, planetopia::config::DEFAULT_PEERS[i], 6);
+      memcpy(peer.mac, lattice::config::DEFAULT_PEERS[i], 6);
       memset(peer.publicKey, 0, 32); // Public key not known yet for config defaults
       peer.lastSeenMillis = 0;
       appendPeer(peer);
@@ -300,13 +287,12 @@ void Mesh::savePeersToEEPROM() {
 
 void Mesh::addPeerToEEPROM(const uint8_t mac[6]) {
   if (findPeer(mac) ||
-      planetopia::utils::MacAddress(mac) == planetopia::utils::MacAddress(deviceMacAddress))
+      lattice::utils::MacAddress(mac) == lattice::utils::MacAddress(deviceMacAddress))
     return;
 
   if (peerCount >= MAX_PEERS) {
-    planetopia::err::fail(planetopia::core::ErrorTypeDigit::MEMORY,
-                          planetopia::core::ModuleDigit::MESH, 2,
-                          "Peer list full! Cannot add new peer. MAX_PEERS reached.");
+    lattice::err::fail(lattice::core::ErrorTypeDigit::MEMORY, lattice::core::ModuleDigit::MESH, 2,
+                       "Peer list full! Cannot add new peer. MAX_PEERS reached.");
     return;
   }
 
@@ -323,21 +309,21 @@ void Mesh::addPeerToEEPROM(const uint8_t mac[6]) {
 
 void Mesh::removePeerFromEEPROM(const uint8_t mac[6]) {
   for (size_t i = 0; i < peerCount; ++i) {
-    if (planetopia::utils::MacAddress(peerMacs[i].mac) == planetopia::utils::MacAddress(mac)) {
+    if (lattice::utils::MacAddress(peerMacs[i].mac) == lattice::utils::MacAddress(mac)) {
       peerMacs[i] = peerMacs[--peerCount]; // swap with last, shrink count
       break;
     }
   }
   savePeersToEEPROM();
   esp_err_t result = esp_now_del_peer(mac);
-  planetopia::err::checkEsp(result, planetopia::utils::ErrorType::COMMUNICATION_FAIL,
-                            "removePeerFromEEPROM: del_peer failed");
+  lattice::err::checkEsp(result, lattice::utils::ErrorType::COMMUNICATION_FAIL,
+                         "removePeerFromEEPROM: del_peer failed");
   Logger::logln("MESH", "Removed ESP-NOW peer.", LogLevel::LOG_DEBUG);
 }
 
 PeerInfo* Mesh::findPeer(const uint8_t mac[6]) {
   for (size_t i = 0; i < peerCount; ++i) {
-    if (planetopia::utils::MacAddress(peerMacs[i].mac) == planetopia::utils::MacAddress(mac))
+    if (lattice::utils::MacAddress(peerMacs[i].mac) == lattice::utils::MacAddress(mac))
       return &peerMacs[i];
   }
   return nullptr;
@@ -346,25 +332,23 @@ bool Mesh::isPeerInRange(const uint8_t mac[6]) {
   PeerInfo* peer = findPeer(mac);
   if (!peer)
     return false;
-  return millis() - peer->lastSeenMillis < planetopia::config::STALE_PEER_THRESHOLD_MS;
+  return millis() - peer->lastSeenMillis < lattice::config::STALE_PEER_THRESHOLD_MS;
 }
 PeerInfo* Mesh::findNextHopToMaster() {
   // For this mesh: nextHop == currentMaster.nextHop
   if (currentMaster.distance == 0xFF)
     return nullptr;
   for (size_t i = 0; i < peerCount; ++i) {
-    if (planetopia::utils::MacAddress(peerMacs[i].mac) ==
-            planetopia::utils::MacAddress(currentMaster.nextHop) &&
+    if (lattice::utils::MacAddress(peerMacs[i].mac) ==
+            lattice::utils::MacAddress(currentMaster.nextHop) &&
         isPeerInRange(peerMacs[i].mac) &&
-        planetopia::utils::MacAddress(peerMacs[i].mac) !=
-            planetopia::utils::MacAddress(deviceMacAddress))
+        lattice::utils::MacAddress(peerMacs[i].mac) != lattice::utils::MacAddress(deviceMacAddress))
       return &peerMacs[i];
   }
   return nullptr;
 }
 
-mesh_message Mesh::buildMessage(adapter_types type, const uint8_t data[64],
-                                MeshMessageType msgType) {
+mesh_message Mesh::buildMessage(adapter_types type, const uint8_t* data, MeshMessageType msgType) {
   mesh_message msg = {};
   msg.protoVersion = PROTO_VERSION;
   msg.messageType = msgType;
@@ -403,8 +387,8 @@ bool Mesh::init() {
 
   // 3a. Apply TX power preset from EEPROM (deployment-specific)
   {
-    planetopia::config::TxPowerPreset preset = EEPROM_Manager::getInstance().loadTxPowerPreset();
-    uint8_t txPowerVal = planetopia::config::TX_POWER_VALUES[static_cast<uint8_t>(preset)];
+    lattice::config::TxPowerPreset preset = EEPROM_Manager::getInstance().loadTxPowerPreset();
+    uint8_t txPowerVal = lattice::config::TX_POWER_VALUES[static_cast<uint8_t>(preset)];
     esp_err_t txErr = esp_wifi_set_max_tx_power(static_cast<int8_t>(txPowerVal));
     if (txErr != ESP_OK) {
       Logger::logln("MESH", String("TX power set failed: ") + esp_err_to_name(txErr),
@@ -423,9 +407,8 @@ bool Mesh::init() {
 
 bool Mesh::setupWiFi() {
   WiFi.mode(WIFI_STA);
-  planetopia::err::checkEsp(
-      esp_wifi_set_channel(planetopia::config::WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE),
-      planetopia::utils::ErrorType::HARDWARE_FAILURE, "Failed to set WiFi channel");
+  lattice::err::checkEsp(esp_wifi_set_channel(lattice::config::WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE),
+                         lattice::utils::ErrorType::HARDWARE_FAILURE, "Failed to set WiFi channel");
 
   readMacAddress();
   return true;
@@ -470,28 +453,25 @@ void Mesh::loadOrGenerateKeypair() {
   mbedtls_entropy_init(&entropy);
   mbedtls_ctr_drbg_init(&ctr_drbg);
 
-  const char* pers = "planetopia_keygen";
+  const char* pers = "lattice_keygen";
   int ret;
   ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
                               reinterpret_cast<const uint8_t*>(pers), strlen(pers));
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 1,
-                           "MESH: keypair gen — entropy seed failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 1,
+                        "MESH: keypair gen — entropy seed failed");
   }
 
   ret = mbedtls_ecp_group_load(&grp, MBEDTLS_ECP_DP_CURVE25519);
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 2,
-                           "MESH: keypair gen — ecp_group_load failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 2,
+                        "MESH: keypair gen — ecp_group_load failed");
   }
 
   ret = mbedtls_ecdh_gen_public(&grp, &d, &Q, mbedtls_ctr_drbg_random, &ctr_drbg);
   if (ret != 0) {
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::CONFIG,
-                           planetopia::core::ModuleDigit::MESH, 3,
-                           "MESH: keypair gen — ecdh_gen_public failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 3,
+                        "MESH: keypair gen — ecdh_gen_public failed");
   }
 
   // Export private scalar (d) — 32 bytes big-endian (NEVER printed to serial)
@@ -512,9 +492,8 @@ void Mesh::loadOrGenerateKeypair() {
 bool Mesh::setupEspNow() {
   esp_err_t res = esp_now_init();
   if (res != ESP_OK) {
-    planetopia::err::fail(planetopia::core::ErrorTypeDigit::COMM,
-                          planetopia::core::ModuleDigit::MESH, 3,
-                          (String("MESH: esp_now_init failed: ") + esp_err_to_name(res)).c_str());
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::MESH, 3,
+                       (String("MESH: esp_now_init failed: ") + esp_err_to_name(res)).c_str());
     return false;
   }
   esp_now_set_pmk(meshKey);
@@ -632,7 +611,7 @@ void IRAM_ATTR Mesh::dataRecvTrampoline(const esp_now_recv_info* mac_addr, const
 }
 
 void Mesh::sendMessage(const uint8_t target[6], mesh_message msg) {
-  if (planetopia::utils::MacAddress(target) == planetopia::utils::MacAddress(deviceMacAddress)) {
+  if (lattice::utils::MacAddress(target) == lattice::utils::MacAddress(deviceMacAddress)) {
     Logger::logln("MESH", "Not sending to self. Skipped.", LogLevel::LOG_DEBUG);
     return;
   }
@@ -640,9 +619,8 @@ void Mesh::sendMessage(const uint8_t target[6], mesh_message msg) {
   if (result == ESP_OK) {
     Logger::logln("MESH", "Message sent to peer", LogLevel::LOG_DEBUG);
   } else {
-    planetopia::err::fail(
-        planetopia::core::ErrorTypeDigit::COMM, planetopia::core::ModuleDigit::MESH, 5,
-        (String("MESH: Error sending message: ") + esp_err_to_name(result)).c_str());
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::MESH, 5,
+                       (String("MESH: Error sending message: ") + esp_err_to_name(result)).c_str());
   }
 }
 
@@ -658,7 +636,7 @@ void Mesh::broadcastToAllPeers(mesh_message msg) {
   }
 }
 
-void Mesh::transmitCore(const adapter_types type, const uint8_t data[64], MeshMessageType msgType,
+void Mesh::transmitCore(const adapter_types type, const uint8_t* data, MeshMessageType msgType,
                         const mesh_message* msgOverride) {
   mesh_message msg;
   if (msgOverride) {
@@ -675,19 +653,18 @@ void Mesh::transmitCore(const adapter_types type, const uint8_t data[64], MeshMe
 
   // Routing: always use next hop if possible
   PeerInfo* nextHop = findNextHopToMaster();
-  if (nextHop && planetopia::utils::MacAddress(nextHop->mac) !=
-                     planetopia::utils::MacAddress(deviceMacAddress)) {
+  if (nextHop &&
+      lattice::utils::MacAddress(nextHop->mac) != lattice::utils::MacAddress(deviceMacAddress)) {
     sendMessage(nextHop->mac, msg);
   } else {
     Logger::logln("MESH", "No next hop to master — message dropped. Master timeout or unreachable.",
                   LogLevel::LOG_WARN);
-    planetopia::err::fail(planetopia::core::ErrorTypeDigit::COMM,
-                          planetopia::core::ModuleDigit::MESH, 8,
-                          "MESH: message dropped, no route to master");
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::MESH, 8,
+                       "MESH: message dropped, no route to master");
   }
 }
 
-void Mesh::transmit(const adapter_types type, const uint8_t data[64]) {
+void Mesh::transmit(const adapter_types type, const uint8_t* data) {
   if (!instance) {
     Logger::logln("MESH", "transmit() called before init", LogLevel::LOG_WARN);
     return;
@@ -706,7 +683,7 @@ void Mesh::linkDataRecvCallback(std::function<void(mesh_message)> recvCallback) 
 // --- Periodically called in main loop if this node is master ---
 void Mesh::broadcastMasterBeacon() {
   unsigned long now = millis();
-  if (now - lastBeaconMillis < planetopia::config::MASTER_BEACON_INTERVAL_MS)
+  if (now - lastBeaconMillis < lattice::config::MASTER_BEACON_INTERVAL_MS)
     return;
   lastBeaconMillis = now;
 
@@ -729,9 +706,8 @@ void Mesh::broadcastMasterBeacon() {
 void Mesh::addPeer(const uint8_t mac[6]) {
   if (!findPeer(mac)) {
     if (peerCount >= MAX_PEERS) {
-      planetopia::err::fail(planetopia::core::ErrorTypeDigit::MEMORY,
-                            planetopia::core::ModuleDigit::MESH, 6,
-                            "Peer list full! Cannot add new peer. MAX_PEERS reached.");
+      lattice::err::fail(lattice::core::ErrorTypeDigit::MEMORY, lattice::core::ModuleDigit::MESH, 6,
+                         "Peer list full! Cannot add new peer. MAX_PEERS reached.");
       Logger::logln("MESH", "Peer list is full, skipping add", LogLevel::LOG_WARN);
       return;
     }
@@ -756,8 +732,8 @@ void Mesh::loadMeshKeyFromEEPROM() {
   }
 
   // If in DEV_MODE always override with compile-time key
-  if (planetopia::config::DEV_MODE) {
-    memcpy(meshKey, planetopia::config::DEFAULT_MESH_KEY, MESH_KEY_SIZE);
+  if (lattice::config::DEV_MODE) {
+    memcpy(meshKey, lattice::config::DEFAULT_MESH_KEY, MESH_KEY_SIZE);
     Logger::logln("MESH", "DEV_MODE: Overriding mesh key with compile-time default",
                   LogLevel::LOG_INFO);
   }
@@ -773,7 +749,7 @@ void Mesh::loadMeshKeyFromEEPROM() {
 
   if (unset) {
     Logger::logln("MESH", "Mesh key unset, loading default from config", LogLevel::LOG_INFO);
-    memcpy(meshKey, planetopia::config::DEFAULT_MESH_KEY, MESH_KEY_SIZE);
+    memcpy(meshKey, lattice::config::DEFAULT_MESH_KEY, MESH_KEY_SIZE);
     saveMeshKeyToEEPROM(meshKey); // Will be skipped automatically in dev mode
   }
 }
@@ -797,13 +773,13 @@ bool Mesh::meshKeyIsSet() const {
   return false;
 }
 
-void Mesh::broadcastAdapterData(adapter_types type, const uint8_t data[64]) {
+void Mesh::broadcastAdapterData(adapter_types type, const uint8_t* data) {
   mesh_message msg = buildMessage(type, data, MESH_TYPE_ADAPTER_DATA);
   memset(msg.targetMacAddress, 0xFF, 6); // broadcast indicator — relayed by intermediate nodes
   broadcastToAllPeers(msg);
 }
 
-void Mesh::broadcastAdapterDataStatic(adapter_types type, const uint8_t data[64]) {
+void Mesh::broadcastAdapterDataStatic(adapter_types type, const uint8_t* data) {
   if (instance)
     instance->broadcastAdapterData(type, data);
 }
@@ -842,7 +818,7 @@ void Mesh::checkMasterTimeout() {
 void Mesh::updatePeerLastSeen(const uint8_t mac[6]) {
   if (!mac)
     return;
-  if (planetopia::utils::MacAddress(mac) == planetopia::utils::MacAddress(deviceMacAddress))
+  if (lattice::utils::MacAddress(mac) == lattice::utils::MacAddress(deviceMacAddress))
     return;
   // Enrollment is the only path for new peers — do not auto-add unknown senders here.
   // Unknown senders are silently ignored for non-enrollment messages.
@@ -854,7 +830,7 @@ void Mesh::updatePeerLastSeen(const uint8_t mac[6]) {
 
 void Mesh::processMasterBeacon(const mesh_message& msg) {
   // Guard: drop beacon if hop count would overflow uint8_t or exceed limit
-  if (msg.hopCount >= planetopia::config::MAX_HOPS) {
+  if (msg.hopCount >= lattice::config::MAX_HOPS) {
     Logger::logln("MESH", "Beacon hop count exceeded MAX_HOPS, dropping relay", LogLevel::LOG_WARN);
     return;
   }
@@ -893,15 +869,15 @@ void Mesh::processMasterBeacon(const mesh_message& msg) {
     }
   }
 
-  if (planetopia::utils::MacAddress(lastSeenMasterMac) !=
-          planetopia::utils::MacAddress(msg.originMacAddress) &&
+  if (lattice::utils::MacAddress(lastSeenMasterMac) !=
+          lattice::utils::MacAddress(msg.originMacAddress) &&
       lastSeenMasterMac[0] != 0) {
     if (_dualMasterMode) {
       Logger::logln("MESH", "Two masters active (dual master mode)", LogLevel::LOG_DEBUG);
     } else {
       Logger::logln("MESH", "WARNING: Multiple masters detected!", LogLevel::LOG_WARN);
-      planetopia::err::fail(
-          planetopia::core::ErrorTypeDigit::CONFIG, planetopia::core::ModuleDigit::MESH, 7,
+      lattice::err::fail(
+          lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 7,
           "Multiple master nodes detected! Network split or misconfiguration likely.");
     }
   }
@@ -910,8 +886,8 @@ void Mesh::processMasterBeacon(const mesh_message& msg) {
 
   uint8_t newDistance = msg.hopCount + 1;
   if (currentMaster.distance == 0xFF ||
-      planetopia::utils::MacAddress(currentMaster.mac) !=
-          planetopia::utils::MacAddress(msg.originMacAddress) ||
+      lattice::utils::MacAddress(currentMaster.mac) !=
+          lattice::utils::MacAddress(msg.originMacAddress) ||
       newDistance < currentMaster.distance) {
     memcpy(currentMaster.mac, msg.originMacAddress, 6);
     currentMaster.distance = newDistance;
@@ -935,7 +911,7 @@ void Mesh::processMasterBeacon(const mesh_message& msg) {
     // nodes and eliminate the collision burst that occurs when all nodes relay
     // within milliseconds of receiving the same beacon.
     // Jitter window: 10–73 ms (10 + esp_random() % RELAY_JITTER_MAX_MS)
-    uint8_t jitterMs = static_cast<uint8_t>(esp_random() % planetopia::config::RELAY_JITTER_MAX_MS);
+    uint8_t jitterMs = static_cast<uint8_t>(esp_random() % lattice::config::RELAY_JITTER_MAX_MS);
     relayPendingMsg = msg;
     relayPendingMsg.hopCount = newDistance;
     memcpy(relayPendingMsg.lastHopMacAddress, deviceMacAddress, 6);
@@ -945,7 +921,7 @@ void Mesh::processMasterBeacon(const mesh_message& msg) {
 }
 
 void Mesh::processAdapterData(const mesh_message& msg) {
-  // OP_CONFIG_SET = 0xC1 (from lib/planetopia-protocol/opcodes.h)
+  // OP_CONFIG_SET = 0xC1 (from lib/lattice-protocol/opcodes.h)
   static const uint8_t kBroadcastMac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
   bool addressedToSelf = (memcmp(msg.targetMacAddress, deviceMacAddress, 6) == 0);
@@ -956,7 +932,7 @@ void Mesh::processAdapterData(const mesh_message& msg) {
   if (!isMaster && !addressedToSelf && !isBroadcastTarget) {
     if (addressedToMaster) {
       // Uplink: relay toward master via routing table
-      if (msg.hopCount >= planetopia::config::MAX_HOPS)
+      if (msg.hopCount >= lattice::config::MAX_HOPS)
         return;
       mesh_message relay = msg;
       relay.hopCount++;
@@ -991,7 +967,7 @@ void Mesh::processAdapterData(const mesh_message& msg) {
 }
 
 void Mesh::relayDownlink(const mesh_message& msg) {
-  if (msg.hopCount >= planetopia::config::MAX_HOPS)
+  if (msg.hopCount >= lattice::config::MAX_HOPS)
     return;
   mesh_message relay = msg;
   relay.hopCount++;
@@ -1135,4 +1111,4 @@ void Mesh::loop() {
 }
 
 } // namespace mesh
-} // namespace planetopia
+} // namespace lattice

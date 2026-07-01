@@ -11,13 +11,13 @@
 #include "src/core/Logger.h"
 #include "src/persistence/EEPROM_Manager.h"
 #include "../../main/project_config.h"
-#include "lib/planetopia-protocol/c/opcodes.h"
+#include "lib/lattice-protocol/c/opcodes.h"
 #include <cstring>
 
-namespace planetopia {
+namespace lattice {
 namespace mesh {
 
-using namespace planetopia::utils;
+using namespace lattice::utils;
 
 bool Mesh::isReplay(const mesh_message& msg) {
   for (size_t i = 0; i < REPLAY_CACHE_SIZE; ++i) {
@@ -36,7 +36,7 @@ bool Mesh::isReplay(const mesh_message& msg) {
 
 void Mesh::processMasterBeacon(const mesh_message& msg) {
   // Guard: drop beacon if hop count would overflow uint8_t or exceed limit
-  if (msg.hopCount >= planetopia::config::MAX_HOPS) {
+  if (msg.hopCount >= lattice::config::MAX_HOPS) {
     Logger::logln("MESH", "Beacon hop count exceeded MAX_HOPS, dropping relay", LogLevel::LOG_WARN);
     return;
   }
@@ -75,8 +75,8 @@ void Mesh::processMasterBeacon(const mesh_message& msg) {
     }
   }
 
-  if (planetopia::utils::MacAddress(lastSeenMasterMac) !=
-          planetopia::utils::MacAddress(msg.originMacAddress) &&
+  if (lattice::utils::MacAddress(lastSeenMasterMac) !=
+          lattice::utils::MacAddress(msg.originMacAddress) &&
       lastSeenMasterMac[0] != 0) {
     if (_dualMasterMode) {
       Logger::logln("MESH", "Two masters active (dual master mode)", LogLevel::LOG_DEBUG);
@@ -89,8 +89,8 @@ void Mesh::processMasterBeacon(const mesh_message& msg) {
 
   uint8_t newDistance = msg.hopCount + 1;
   if (currentMaster.distance == 0xFF ||
-      planetopia::utils::MacAddress(currentMaster.mac) !=
-          planetopia::utils::MacAddress(msg.originMacAddress) ||
+      lattice::utils::MacAddress(currentMaster.mac) !=
+          lattice::utils::MacAddress(msg.originMacAddress) ||
       newDistance < currentMaster.distance) {
     memcpy(currentMaster.mac, msg.originMacAddress, 6);
     currentMaster.distance = newDistance;
@@ -109,7 +109,7 @@ void Mesh::processMasterBeacon(const mesh_message& msg) {
     lastRelayedSeqNum = msg.seqNum;
 
     // Defer relay with jitter (esp_random() returns deterministic 42 in tests)
-    uint8_t jitterMs = static_cast<uint8_t>(esp_random() % planetopia::config::RELAY_JITTER_MAX_MS);
+    uint8_t jitterMs = static_cast<uint8_t>(esp_random() % lattice::config::RELAY_JITTER_MAX_MS);
     relayPendingMsg = msg;
     relayPendingMsg.hopCount = newDistance;
     memcpy(relayPendingMsg.lastHopMacAddress, deviceMacAddress, 6);
@@ -169,7 +169,7 @@ bool Mesh::appendPeer(const PeerInfo& peer) {
 }
 
 void Mesh::sendMessage(const uint8_t target[6], mesh_message msg) {
-  if (planetopia::utils::MacAddress(target) == planetopia::utils::MacAddress(deviceMacAddress)) {
+  if (lattice::utils::MacAddress(target) == lattice::utils::MacAddress(deviceMacAddress)) {
     Logger::logln("MESH", "Not sending to self. Skipped.", LogLevel::LOG_DEBUG);
     return;
   }
@@ -182,7 +182,7 @@ void Mesh::sendMessage(const uint8_t target[6], mesh_message msg) {
 }
 
 void Mesh::relayDownlink(const mesh_message& msg) {
-  if (msg.hopCount >= planetopia::config::MAX_HOPS)
+  if (msg.hopCount >= lattice::config::MAX_HOPS)
     return;
   mesh_message relay = msg;
   relay.hopCount++;
@@ -233,8 +233,8 @@ void Mesh::transmitCore(const adapter_types type, const uint8_t data[64], MeshMe
 
   // Routing: always use next hop if possible
   PeerInfo* nextHop = findNextHopToMaster();
-  if (nextHop && planetopia::utils::MacAddress(nextHop->mac) !=
-                     planetopia::utils::MacAddress(deviceMacAddress)) {
+  if (nextHop && lattice::utils::MacAddress(nextHop->mac) !=
+                     lattice::utils::MacAddress(deviceMacAddress)) {
     sendMessage(nextHop->mac, msg);
   } else {
     // Intentionally stubbed: production calls err::fail(); tests never hit this
@@ -256,7 +256,7 @@ bool Mesh::isPeerInRange(const uint8_t mac[6]) {
   PeerInfo* peer = findPeer(mac);
   if (!peer)
     return false;
-  return millis() - peer->lastSeenMillis < planetopia::config::STALE_PEER_THRESHOLD_MS;
+  return millis() - peer->lastSeenMillis < lattice::config::STALE_PEER_THRESHOLD_MS;
 }
 
 PeerInfo* Mesh::findNextHopToMaster() {
@@ -264,11 +264,11 @@ PeerInfo* Mesh::findNextHopToMaster() {
   if (currentMaster.distance == 0xFF)
     return nullptr;
   for (size_t i = 0; i < peerCount; ++i) {
-    if (planetopia::utils::MacAddress(peerMacs[i].mac) ==
-            planetopia::utils::MacAddress(currentMaster.nextHop) &&
+    if (lattice::utils::MacAddress(peerMacs[i].mac) ==
+            lattice::utils::MacAddress(currentMaster.nextHop) &&
         isPeerInRange(peerMacs[i].mac) &&
-        planetopia::utils::MacAddress(peerMacs[i].mac) !=
-            planetopia::utils::MacAddress(deviceMacAddress))
+        lattice::utils::MacAddress(peerMacs[i].mac) !=
+            lattice::utils::MacAddress(deviceMacAddress))
       return &peerMacs[i];
   }
   return nullptr;
@@ -297,7 +297,7 @@ void Mesh::linkDataRecvCallback(std::function<void(mesh_message)> recvCallback) 
 }
 
 void Mesh::processAdapterData(const mesh_message& msg) {
-  // OP_CONFIG_SET = 0xC1 (from main/lib/planetopia-protocol/opcodes.h)
+  // OP_CONFIG_SET = 0xC1 (from main/lib/lattice-protocol/opcodes.h)
   static const uint8_t kBroadcastMac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
   bool addressedToSelf = (memcmp(msg.targetMacAddress, deviceMacAddress, 6) == 0);
@@ -308,7 +308,7 @@ void Mesh::processAdapterData(const mesh_message& msg) {
   if (!isMaster && !addressedToSelf && !isBroadcastTarget) {
     if (addressedToMaster) {
       // Uplink: relay toward master via routing table
-      if (msg.hopCount >= planetopia::config::MAX_HOPS)
+      if (msg.hopCount >= lattice::config::MAX_HOPS)
         return;
       mesh_message relay = msg;
       relay.hopCount++;
@@ -382,4 +382,4 @@ void Mesh::drainPendingEnrollment() {
 }
 
 } // namespace mesh
-} // namespace planetopia
+} // namespace lattice

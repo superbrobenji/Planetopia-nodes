@@ -4,7 +4,7 @@
 #include "time_mock.h"
 #include "EEPROM.h"
 
-using namespace planetopia::mesh;
+using namespace lattice::mesh;
 
 // ReplayCache is tested via Mesh's isReplay() method.
 // We construct a Mesh instance in test mode and call isReplay directly.

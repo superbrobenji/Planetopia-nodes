@@ -14,16 +14,16 @@
 
 #ifdef UNIT_TEST
 // Forward declarations for test fixture classes (global namespace) so that
-// friend declarations inside planetopia::mesh::Mesh are valid.
+// friend declarations inside lattice::mesh::Mesh are valid.
 class ReplayCacheTest;
 class MeshLogicTest;
 #endif
 
-namespace planetopia {
+namespace lattice {
 namespace mesh {
 
-using planetopia::adapter::adapter_types;
-using planetopia::utils::EEPROM_SIZES::MAX_PEERS; // Use constant from EEPROM_Manager
+using lattice::adapter::adapter_types;
+using lattice::utils::EEPROM_SIZES::MAX_PEERS; // Use constant from EEPROM_Manager
 
 // --- Mesh protocol message type ---
 enum MeshMessageType : uint8_t {
@@ -105,7 +105,7 @@ private:
   static void IRAM_ATTR dataRecvTrampoline(const esp_now_recv_info* mac_addr, const uint8_t* data,
                                            int len);
 
-  mesh_message buildMessage(adapter_types type, const uint8_t data[64], MeshMessageType msgType);
+  mesh_message buildMessage(adapter_types type, const uint8_t* data, MeshMessageType msgType);
 
   std::function<void(mesh_message)> externalRecvCallback;
 
@@ -113,8 +113,7 @@ private:
   bool isMaster;
   uint32_t lastBeaconMillis;
   uint32_t lastMasterBeaconReceivedMs;
-  static constexpr uint32_t STALE_MASTER_THRESHOLD_MS =
-      planetopia::config::STALE_MASTER_THRESHOLD_MS;
+  static constexpr uint32_t STALE_MASTER_THRESHOLD_MS = lattice::config::STALE_MASTER_THRESHOLD_MS;
 
   // Peer EEPROM management
   void loadPeersFromEEPROM();
@@ -133,7 +132,7 @@ private:
   void sendMessage(const uint8_t target[6], mesh_message msg);
   void broadcastToAllPeers(mesh_message msg);
 
-  void transmitCore(const adapter_types type, const uint8_t data[64],
+  void transmitCore(const adapter_types type, const uint8_t* data,
                     MeshMessageType msgType = MESH_TYPE_ADAPTER_DATA,
                     const mesh_message* msgOverride = nullptr);
 
@@ -222,7 +221,7 @@ public:
   bool init();
 
   // Static trampoline for Adapter usage
-  static void transmit(const adapter_types type, const uint8_t data[64]);
+  static void transmit(const adapter_types type, const uint8_t* data);
 
   void linkDataRecvCallback(std::function<void(mesh_message)> recvCallback);
 
@@ -248,10 +247,10 @@ public:
   size_t getPeerCount() const { return peerCount; }
 
   // Broadcast adapter data to all peers
-  void broadcastAdapterData(adapter_types type, const uint8_t data[64]);
+  void broadcastAdapterData(adapter_types type, const uint8_t* data);
 
   // Serial adapter helper (optional broadcast)
-  static void broadcastAdapterDataStatic(adapter_types type, const uint8_t data[64]);
+  static void broadcastAdapterDataStatic(adapter_types type, const uint8_t* data);
 
   // Debug helper
   void debugDumpRadio();
@@ -288,6 +287,6 @@ public:
 };
 
 } // namespace mesh
-} // namespace planetopia
+} // namespace lattice
 
 #endif // MESH_H

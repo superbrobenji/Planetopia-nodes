@@ -4,7 +4,7 @@
 #include "time_mock.h"
 #include "EEPROM.h"
 
-using namespace planetopia::mesh;
+using namespace lattice::mesh;
 
 class MeshLogicTest : public ::testing::Test {
 protected:
@@ -281,7 +281,7 @@ TEST_F(RelayDownlinkTest, DropsAtMaxHops) {
   mesh.appendPeer(p1);
 
   auto msg = makeDataMsg(kOriginMac, kPeer1Mac, 1, 1,
-                         /*hopCount=*/planetopia::config::MAX_HOPS);
+                         /*hopCount=*/lattice::config::MAX_HOPS);
 
   mesh.relayDownlink(msg);
 

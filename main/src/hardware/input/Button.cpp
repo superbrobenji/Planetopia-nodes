@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include <cstdint>
 
-namespace planetopia {
+namespace lattice {
 namespace hardware {
 
 Button::Button(uint8_t pin) : GpioInput(pin) {}
@@ -46,4 +46,4 @@ bool Button::waitForHold(uint32_t ms) {
 }
 
 } // namespace hardware
-} // namespace planetopia
+} // namespace lattice

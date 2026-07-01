@@ -1,6 +1,6 @@
 #ifndef PLANETOPA_ERRORCODES_H
 #define PLANETOPA_ERRORCODES_H
-namespace planetopia {
+namespace lattice {
 namespace core {
 enum class ErrorTypeDigit : uint8_t {
   GENERIC = 1,
@@ -22,5 +22,5 @@ constexpr uint16_t makeErrorCode(ErrorTypeDigit t, ModuleDigit m, uint8_t sub) {
                                (sub % 10));
 }
 } // namespace core
-} // namespace planetopia
+} // namespace lattice
 #endif

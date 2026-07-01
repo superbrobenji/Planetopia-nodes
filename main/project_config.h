@@ -5,7 +5,7 @@
 #include "src/core/Logger.h"
 #include "src/Adapter/Adapter.h"
 
-namespace planetopia {
+namespace lattice {
 namespace config {
 
 // =====================
@@ -24,7 +24,7 @@ constexpr bool DEFAULT_DEV_MASTER = true;
 // =====================
 // Adapter instantiated on first boot or in DEV_MODE
 // IMPORTANT: For server communication via USB, MUST be SERIAL_ADAPTER
-constexpr planetopia::adapter::adapter_types DEFAULT_ADAPTER = planetopia::adapter::adapter_types::SERIAL_ADAPTER;
+constexpr lattice::adapter::adapter_types DEFAULT_ADAPTER = lattice::adapter::adapter_types::SERIAL_ADAPTER;
 // Primary mesh-beacon interval (milliseconds)
 constexpr unsigned long MASTER_BEACON_INTERVAL_MS = 3000;
 // Stale-master threshold: node clears master route after this many ms without a beacon (3× interval)
@@ -81,7 +81,7 @@ constexpr int NUM_DEFAULT_PEERS = sizeof(DEFAULT_PEERS) / sizeof(DEFAULT_PEERS[0
 // =====================
 // CRITICAL: For server communication, MUST be LOG_NONE to prevent text output
 // Only enable logging (LOG_DEBUG, LOG_INFO, etc.) for development/debugging
-constexpr planetopia::utils::LogLevel DEFAULT_LOG_LEVEL = planetopia::utils::LogLevel::LOG_NONE;
+constexpr lattice::utils::LogLevel DEFAULT_LOG_LEVEL = lattice::utils::LogLevel::LOG_NONE;
 
 // =====================
 // 7. TX Power Presets
@@ -122,6 +122,6 @@ constexpr uint32_t HEALTH_REPORT_INTERVAL_MS = 30000;
 // Future limits (message queue, buffer sizes, etc.) can be centralized here
 
 } // namespace config
-} // namespace planetopia
+} // namespace lattice
 
 #endif // PROJECT_CONFIG_H

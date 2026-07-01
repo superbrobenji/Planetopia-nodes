@@ -6,7 +6,7 @@
 #include "ErrorCodes.h"
 #include "../core/Logger.h"
 #include <Arduino.h>
-namespace planetopia {
+namespace lattice {
 namespace utils {
 enum class ErrorType : uint8_t {
   GENERIC = 0,
@@ -21,8 +21,7 @@ enum class ErrorType : uint8_t {
 class ErrorCore {
 public:
   static ErrorCore& getInstance();
-  void init(planetopia::hardware::Led* led,
-            planetopia::hardware::SevenSegDisplay* display = nullptr);
+  void init(lattice::hardware::Led* led, lattice::hardware::SevenSegDisplay* display = nullptr);
   void signalError(core::ErrorTypeDigit t, core::ModuleDigit m, uint8_t sub,
                    const char* msg = nullptr);
   void signalError(ErrorType type, const char* msg = nullptr);
@@ -33,8 +32,8 @@ public:
 
 private:
   ErrorCore();
-  planetopia::hardware::Led* _errorLed;
-  planetopia::hardware::SevenSegDisplay* _display;
+  lattice::hardware::Led* _errorLed;
+  lattice::hardware::SevenSegDisplay* _display;
   bool _initialized;
   volatile bool _pendingBlink;
   ErrorType _pendingBlinkType;
@@ -44,5 +43,5 @@ private:
   [[noreturn]] void restartDevice();
 };
 } // namespace utils
-} // namespace planetopia
+} // namespace lattice
 #endif

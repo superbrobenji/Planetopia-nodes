@@ -1,6 +1,6 @@
 #include "Pir.h"
 
-namespace planetopia {
+namespace lattice {
 namespace hardware {
 
 Pir::Pir(uint8_t pin) : GpioInput(pin), _motionDetected(false) {}
@@ -38,4 +38,4 @@ void Pir::signalMotion() {
 }
 
 } // namespace hardware
-} // namespace planetopia
+} // namespace lattice

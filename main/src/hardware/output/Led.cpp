@@ -2,10 +2,10 @@
 #include "src/core/Logger.h"
 #include "src/error/Error.h"
 
-namespace planetopia {
+namespace lattice {
 namespace hardware {
 
-using namespace planetopia::utils;
+using namespace lattice::utils;
 
 // Static member init
 Led* Led::_systemErrorLed = nullptr;
@@ -26,8 +26,8 @@ bool Led::init() {
   // Use GpioOutput::init() for validation and pinMode
   if (!GpioOutput::init()) {
     if (this != _systemErrorLed) {
-      planetopia::err::fail(planetopia::core::ErrorTypeDigit::CONFIG,
-                            planetopia::core::ModuleDigit::HW, 1, "Led: Invalid pin number");
+      lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::HW, 1,
+                         "Led: Invalid pin number");
     }
     Logger::logln("Led", "ERROR: Invalid pin number for LED: " + String(_pin), LogLevel::LOG_ERROR);
     return false;
@@ -41,9 +41,8 @@ bool Led::init() {
 bool Led::on() {
   if (!_initialized) {
     if (this != _systemErrorLed) {
-      planetopia::err::fail(planetopia::core::ErrorTypeDigit::HARDWARE,
-                            planetopia::core::ModuleDigit::HW, 2,
-                            "Led: on() called before initialization");
+      lattice::err::fail(lattice::core::ErrorTypeDigit::HARDWARE, lattice::core::ModuleDigit::HW, 2,
+                         "Led: on() called before initialization");
     }
     Logger::logln("Led", "ERROR: on() called before initialization", LogLevel::LOG_ERROR);
     return false;
@@ -54,9 +53,8 @@ bool Led::on() {
 bool Led::off() {
   if (!_initialized) {
     if (this != _systemErrorLed) {
-      planetopia::err::fail(planetopia::core::ErrorTypeDigit::HARDWARE,
-                            planetopia::core::ModuleDigit::HW, 3,
-                            "Led: off() called before initialization");
+      lattice::err::fail(lattice::core::ErrorTypeDigit::HARDWARE, lattice::core::ModuleDigit::HW, 3,
+                         "Led: off() called before initialization");
     }
     Logger::logln("Led", "ERROR: off() called before initialization", LogLevel::LOG_ERROR);
     return false;
@@ -67,9 +65,8 @@ bool Led::off() {
 bool Led::toggle() {
   if (!_initialized) {
     if (this != _systemErrorLed) {
-      planetopia::err::fail(planetopia::core::ErrorTypeDigit::HARDWARE,
-                            planetopia::core::ModuleDigit::HW, 4,
-                            "Led: toggle() called before initialization");
+      lattice::err::fail(lattice::core::ErrorTypeDigit::HARDWARE, lattice::core::ModuleDigit::HW, 4,
+                         "Led: toggle() called before initialization");
     }
     Logger::logln("Led", "ERROR: toggle() called before initialization", LogLevel::LOG_ERROR);
     return false;
@@ -104,9 +101,8 @@ void Led::setSystemErrorLed(Led* led) {
 bool Led::blink(uint8_t times, unsigned int onTimeMs, unsigned int offTimeMs) {
   if (!_initialized) {
     if (this != _systemErrorLed) {
-      planetopia::err::fail(planetopia::core::ErrorTypeDigit::HARDWARE,
-                            planetopia::core::ModuleDigit::HW, 5,
-                            "Led: blink() called before initialization");
+      lattice::err::fail(lattice::core::ErrorTypeDigit::HARDWARE, lattice::core::ModuleDigit::HW, 5,
+                         "Led: blink() called before initialization");
     }
     Logger::logln("Led", "ERROR: blink() called before initialization", LogLevel::LOG_ERROR);
     return false;
@@ -124,4 +120,4 @@ bool Led::blink(uint8_t times, unsigned int onTimeMs, unsigned int offTimeMs) {
 }
 
 } // namespace hardware
-} // namespace planetopia
+} // namespace lattice

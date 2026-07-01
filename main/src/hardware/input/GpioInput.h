@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-namespace planetopia {
+namespace lattice {
 namespace hardware {
 
 class GpioInput {
@@ -21,6 +21,6 @@ protected:
 };
 
 } // namespace hardware
-} // namespace planetopia
+} // namespace lattice
 
 #endif
