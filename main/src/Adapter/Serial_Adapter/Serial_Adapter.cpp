@@ -51,9 +51,8 @@ void Serial_Adapter::sendHealthReport() {
   } else {
     Logger::logln("Serial_Adapter", "Mesh transmit function not available for health report",
                   LogLevel::LOG_WARN);
-    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
-                          lattice::core::ModuleDigit::ADAPTER, 1,
-                          "Serial_Adapter: Mesh transmit not available");
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::ADAPTER, 1,
+                       "Serial_Adapter: Mesh transmit not available");
   }
 }
 
@@ -79,8 +78,7 @@ void Serial_Adapter::loop() {
   uint32_t currentHopCount = meshPtr ? meshPtr->getHopCount() : 0;
   bool stateChanged = (currentHopCount != lastReportedHopCount);
 
-  if (stateChanged ||
-      millis() - lastHealthMillis >= lattice::config::HEALTH_REPORT_INTERVAL_MS) {
+  if (stateChanged || millis() - lastHealthMillis >= lattice::config::HEALTH_REPORT_INTERVAL_MS) {
     lastHealthMillis = static_cast<uint32_t>(millis());
     Logger::logln("Serial_Adapter",
                   String(stateChanged ? "Health report triggered by state change (hopCount: "
@@ -105,9 +103,8 @@ void Serial_Adapter::loop() {
 
       if (frameLength == 0 || frameLength > MAX_PAYLOAD) {
         Logger::logln("SERIAL", "Frame parse error", LogLevel::LOG_WARN);
-        lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
-                              lattice::core::ModuleDigit::ADAPTER, 2,
-                              "Serial_Adapter: Invalid frame length");
+        lattice::err::fail(lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::ADAPTER,
+                           2, "Serial_Adapter: Invalid frame length");
         // Reset on invalid length
         frameState = FrameState::AwaitingLen1;
         frameLength = 0;
@@ -121,9 +118,8 @@ void Serial_Adapter::loop() {
     case FrameState::AwaitingPayload:
       if (frameIndex >= MAX_PAYLOAD) {
         Logger::logln("SERIAL", "Frame parse error", LogLevel::LOG_WARN);
-        lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
-                              lattice::core::ModuleDigit::ADAPTER, 3,
-                              "Serial_Adapter: Frame buffer overflow");
+        lattice::err::fail(lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::ADAPTER,
+                           3, "Serial_Adapter: Frame buffer overflow");
         frameState = FrameState::AwaitingLen1;
         frameLength = 0;
         frameIndex = 0;
@@ -187,9 +183,8 @@ void Serial_Adapter::onMeshDataImpl(const lattice::mesh::mesh_message& message) 
   if (n == 0) {
     Logger::logln("Serial_Adapter", "Failed to encode mesh message for serial output",
                   LogLevel::LOG_ERROR);
-    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
-                          lattice::core::ModuleDigit::ADAPTER, 4,
-                          "Serial_Adapter: Message encoding failed");
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::ADAPTER, 4,
+                       "Serial_Adapter: Message encoding failed");
     return;
   }
 
@@ -336,8 +331,7 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
     uint8_t op = data[0];
     if (op == OP_SIM_PIR_TRIGGER) {
       Logger::logln("SIM", "Injecting fake PIR event", LogLevel::LOG_WARN);
-      lattice::adapter::PIR_Adapter* pirAdapter =
-          lattice::adapter::PIR_Adapter::getInstance();
+      lattice::adapter::PIR_Adapter* pirAdapter = lattice::adapter::PIR_Adapter::getInstance();
       if (pirAdapter)
         pirAdapter->simulateMotion();
       return;
@@ -375,9 +369,8 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
   lattice::mesh::mesh_message msg;
   if (!decodeMeshMessage(data, len, msg)) {
     Logger::logln("Serial_Adapter", "Failed to decode protobuf frame", LogLevel::LOG_ERROR);
-    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
-                          lattice::core::ModuleDigit::ADAPTER, 5,
-                          "Serial_Adapter: Failed to decode protobuf frame");
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::ADAPTER, 5,
+                       "Serial_Adapter: Failed to decode protobuf frame");
     return;
   }
 
@@ -419,9 +412,8 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
       Logger::logln("Serial_Adapter", "Adapter data forwarded successfully", LogLevel::LOG_DEBUG);
     } else {
       Logger::logln("Serial_Adapter", "transmit function not set", LogLevel::LOG_ERROR);
-      lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG,
-                            lattice::core::ModuleDigit::ADAPTER, 6,
-                            "Serial_Adapter: transmit function not set");
+      lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::ADAPTER,
+                         6, "Serial_Adapter: transmit function not set");
     }
   } else if (msg.messageType == lattice::mesh::MESH_TYPE_SERIAL_CMD_BROADCAST) {
     Logger::logln("Serial_Adapter", "Broadcasting adapter data to all peers", LogLevel::LOG_DEBUG);
@@ -502,8 +494,7 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
           uint8_t fwdData[12] = {};
           fwdData[0] = OP_TX_POWER_SET;
           fwdData[1] = presetByte;
-          lattice::mesh::Mesh::broadcastAdapterDataStatic(adapter_types::SERIAL_ADAPTER,
-                                                             fwdData);
+          lattice::mesh::Mesh::broadcastAdapterDataStatic(adapter_types::SERIAL_ADAPTER, fwdData);
           Logger::logln("Serial_Adapter", "TX power preset broadcast to mesh", LogLevel::LOG_INFO);
         }
       }

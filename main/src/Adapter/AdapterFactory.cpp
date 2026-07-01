@@ -31,9 +31,8 @@ Adapter* AdapterFactory::createAdapter(adapter_types type, int pin) {
     return new Serial_Adapter(pin);
 
   default:
-    lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG,
-                          lattice::core::ModuleDigit::ADAPTER, 2,
-                          "AdapterFactory: Unknown adapter type");
+    lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::ADAPTER,
+                       2, "AdapterFactory: Unknown adapter type");
     Logger::logln("Factory", "Error: Unknown adapter type", LogLevel::LOG_ERROR);
     return nullptr;
   }

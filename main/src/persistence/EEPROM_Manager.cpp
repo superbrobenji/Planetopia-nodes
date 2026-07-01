@@ -28,9 +28,8 @@ bool EEPROM_Manager::beginEEPROM() {
 
 void EEPROM_Manager::handleInitFailure() {
   Logger::logln("EEPROM", "Failed to initialize EEPROM", LogLevel::LOG_ERROR);
-  lattice::err::fail(lattice::core::ErrorTypeDigit::MEMORY,
-                        lattice::core::ModuleDigit::EEPROM, 1,
-                        "EEPROM_Manager: EEPROM.begin failed");
+  lattice::err::fail(lattice::core::ErrorTypeDigit::MEMORY, lattice::core::ModuleDigit::EEPROM, 1,
+                     "EEPROM_Manager: EEPROM.begin failed");
 }
 
 // --- refactored init with formal schema versioning ---
@@ -273,7 +272,7 @@ void EEPROM_Manager::saveMeshKey(const uint8_t* key, size_t keySize) {
 // Each peer record is PEER_RECORD_SIZE (38) bytes: 6-byte MAC + 32-byte Curve25519 public key.
 bool EEPROM_Manager::loadPeerList(uint8_t* peerRecords, size_t maxPeers) {
   lattice::err::check(peerRecords != nullptr, lattice::utils::ErrorType::CONFIG_ERROR,
-                         "loadPeerList: peerRecords null");
+                      "loadPeerList: peerRecords null");
   if (!ensureInitialized())
     return false;
   if (maxPeers > EEPROM_SIZES::MAX_PEERS) {
@@ -290,7 +289,7 @@ bool EEPROM_Manager::loadPeerList(uint8_t* peerRecords, size_t maxPeers) {
 
 void EEPROM_Manager::savePeerList(const uint8_t* peerRecords, size_t numPeers) {
   lattice::err::check(peerRecords != nullptr, lattice::utils::ErrorType::CONFIG_ERROR,
-                         "savePeerList: peerRecords null");
+                      "savePeerList: peerRecords null");
   if (!ensureInitialized())
     return;
   if (numPeers > EEPROM_SIZES::MAX_PEERS) {

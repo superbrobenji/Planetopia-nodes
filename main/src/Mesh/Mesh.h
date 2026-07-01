@@ -113,8 +113,7 @@ private:
   bool isMaster;
   uint32_t lastBeaconMillis;
   uint32_t lastMasterBeaconReceivedMs;
-  static constexpr uint32_t STALE_MASTER_THRESHOLD_MS =
-      lattice::config::STALE_MASTER_THRESHOLD_MS;
+  static constexpr uint32_t STALE_MASTER_THRESHOLD_MS = lattice::config::STALE_MASTER_THRESHOLD_MS;
 
   // Peer EEPROM management
   void loadPeersFromEEPROM();

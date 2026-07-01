@@ -28,9 +28,8 @@ void Adapter::sendDataThroughMesh(const adapter_types type, const uint8_t data[6
     mesh_transmit_fn(type, data);
     Logger::logln("Adapter", "Data sent through mesh", LogLevel::LOG_DEBUG);
   } else {
-    lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG,
-                          lattice::core::ModuleDigit::ADAPTER, 1,
-                          "Adapter: Transmit function not set");
+    lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::ADAPTER,
+                       1, "Adapter: Transmit function not set");
   }
 }
 

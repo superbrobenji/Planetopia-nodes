@@ -28,9 +28,8 @@ bool PIR_Adapter::init() {
   }
 
   if (!_pir.init()) {
-    lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG,
-                          lattice::core::ModuleDigit::ADAPTER, 1,
-                          "PIR_Adapter: PIR hardware failed to initialize.");
+    lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::ADAPTER,
+                       1, "PIR_Adapter: PIR hardware failed to initialize.");
     return false;
   }
 
@@ -109,8 +108,8 @@ void PIR_Adapter::loop() {
 
     if (!_pir.attachInterrupt(PIR_Adapter::detectMotionTrampoline, RISING)) {
       lattice::err::fail(lattice::core::ErrorTypeDigit::HARDWARE,
-                            lattice::core::ModuleDigit::ADAPTER, 2,
-                            "PIR_Adapter: Could not re-attach interrupt (possible hardware error)");
+                         lattice::core::ModuleDigit::ADAPTER, 2,
+                         "PIR_Adapter: Could not re-attach interrupt (possible hardware error)");
       return;
     }
     _interruptEnabled = true;

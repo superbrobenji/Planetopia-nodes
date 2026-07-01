@@ -41,16 +41,14 @@ static void derivePeerLMK(const uint8_t* ownPrivateKey32, const uint8_t* peerPub
   ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
                               reinterpret_cast<const uint8_t*>(pers), strlen(pers));
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 10,
-                           "MESH: derivePeerLMK — ctr_drbg_seed failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 10,
+                        "MESH: derivePeerLMK — ctr_drbg_seed failed");
   }
 
   ret = mbedtls_ecdh_setup(&ecdh, MBEDTLS_ECP_DP_CURVE25519);
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 11,
-                           "MESH: derivePeerLMK — ecdh_setup failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 11,
+                        "MESH: derivePeerLMK — ecdh_setup failed");
   }
 
   // Load own private key and peer public key (X coordinate only for Curve25519)
@@ -58,27 +56,24 @@ static void derivePeerLMK(const uint8_t* ownPrivateKey32, const uint8_t* peerPub
       &ecdh.MBEDTLS_PRIVATE(ctx).MBEDTLS_PRIVATE(mbed_ecdh).MBEDTLS_PRIVATE(d), ownPrivateKey32,
       32);
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 12,
-                           "MESH: derivePeerLMK — mpi_read_binary (private key) failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 12,
+                        "MESH: derivePeerLMK — mpi_read_binary (private key) failed");
   }
 
   ret = mbedtls_mpi_read_binary(
       &ecdh.MBEDTLS_PRIVATE(ctx).MBEDTLS_PRIVATE(mbed_ecdh).MBEDTLS_PRIVATE(Qp).MBEDTLS_PRIVATE(X),
       peerPublicKey32, 32);
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 13,
-                           "MESH: derivePeerLMK — mpi_read_binary (peer public key) failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 13,
+                        "MESH: derivePeerLMK — mpi_read_binary (peer public key) failed");
   }
 
   ret = mbedtls_mpi_lset(
       &ecdh.MBEDTLS_PRIVATE(ctx).MBEDTLS_PRIVATE(mbed_ecdh).MBEDTLS_PRIVATE(Qp).MBEDTLS_PRIVATE(Z),
       1);
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 14,
-                           "MESH: derivePeerLMK — mpi_lset (Qp.Z) failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 14,
+                        "MESH: derivePeerLMK — mpi_lset (Qp.Z) failed");
   }
 
   uint8_t sharedSecret[32] = {};
@@ -86,9 +81,8 @@ static void derivePeerLMK(const uint8_t* ownPrivateKey32, const uint8_t* peerPub
   ret = mbedtls_ecdh_calc_secret(&ecdh, &outLen, sharedSecret, sizeof(sharedSecret),
                                  mbedtls_ctr_drbg_random, &ctr_drbg);
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 15,
-                           "MESH: derivePeerLMK — ecdh_calc_secret failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 15,
+                        "MESH: derivePeerLMK — ecdh_calc_secret failed");
   }
 
   mbedtls_ecdh_free(&ecdh);
@@ -101,32 +95,28 @@ static void derivePeerLMK(const uint8_t* ownPrivateKey32, const uint8_t* peerPub
 
   ret = mbedtls_sha256_starts(&sha, 0); // 0 = SHA-256, not SHA-224
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 16,
-                           "MESH: derivePeerLMK — sha256_starts failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 16,
+                        "MESH: derivePeerLMK — sha256_starts failed");
   }
 
   ret = mbedtls_sha256_update(&sha, sharedSecret, 32);
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 17,
-                           "MESH: derivePeerLMK — sha256_update (secret) failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 17,
+                        "MESH: derivePeerLMK — sha256_update (secret) failed");
   }
 
   const uint8_t label[] = "lattice-lmk";
   ret = mbedtls_sha256_update(&sha, label, sizeof(label) - 1);
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 18,
-                           "MESH: derivePeerLMK — sha256_update (label) failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 18,
+                        "MESH: derivePeerLMK — sha256_update (label) failed");
   }
 
   uint8_t digest[32];
   ret = mbedtls_sha256_finish(&sha, digest);
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 19,
-                           "MESH: derivePeerLMK — sha256_finish failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 19,
+                        "MESH: derivePeerLMK — sha256_finish failed");
   }
 
   mbedtls_sha256_free(&sha);
@@ -165,9 +155,8 @@ static void registerPeerWithEspNow(const uint8_t mac[6], const uint8_t* ownPriva
   info.encrypt = hasPublicKey;
   if (hasPublicKey)
     memcpy(info.lmk, lmk, 16);
-  lattice::err::checkEsp(esp_now_add_peer(&info),
-                            lattice::utils::ErrorType::COMMUNICATION_FAIL,
-                            "registerPeerWithEspNow: add_peer failed");
+  lattice::err::checkEsp(esp_now_add_peer(&info), lattice::utils::ErrorType::COMMUNICATION_FAIL,
+                         "registerPeerWithEspNow: add_peer failed");
 }
 
 Mesh::Mesh()
@@ -213,9 +202,7 @@ void Mesh::readMacAddress() {
 }
 
 void Mesh::printMeshMessage(const mesh_message& msg) {
-  auto macToStr = [](const uint8_t mac[6]) {
-    return lattice::utils::MacAddress(mac).toString();
-  };
+  auto macToStr = [](const uint8_t mac[6]) { return lattice::utils::MacAddress(mac).toString(); };
 
   Logger::logln("MESH", "------ Mesh Message ------", LogLevel::LOG_DEBUG);
   Logger::logln("MESH", "Origin:    " + macToStr(msg.originMacAddress), LogLevel::LOG_DEBUG);
@@ -304,9 +291,8 @@ void Mesh::addPeerToEEPROM(const uint8_t mac[6]) {
     return;
 
   if (peerCount >= MAX_PEERS) {
-    lattice::err::fail(lattice::core::ErrorTypeDigit::MEMORY,
-                          lattice::core::ModuleDigit::MESH, 2,
-                          "Peer list full! Cannot add new peer. MAX_PEERS reached.");
+    lattice::err::fail(lattice::core::ErrorTypeDigit::MEMORY, lattice::core::ModuleDigit::MESH, 2,
+                       "Peer list full! Cannot add new peer. MAX_PEERS reached.");
     return;
   }
 
@@ -331,7 +317,7 @@ void Mesh::removePeerFromEEPROM(const uint8_t mac[6]) {
   savePeersToEEPROM();
   esp_err_t result = esp_now_del_peer(mac);
   lattice::err::checkEsp(result, lattice::utils::ErrorType::COMMUNICATION_FAIL,
-                            "removePeerFromEEPROM: del_peer failed");
+                         "removePeerFromEEPROM: del_peer failed");
   Logger::logln("MESH", "Removed ESP-NOW peer.", LogLevel::LOG_DEBUG);
 }
 
@@ -356,8 +342,7 @@ PeerInfo* Mesh::findNextHopToMaster() {
     if (lattice::utils::MacAddress(peerMacs[i].mac) ==
             lattice::utils::MacAddress(currentMaster.nextHop) &&
         isPeerInRange(peerMacs[i].mac) &&
-        lattice::utils::MacAddress(peerMacs[i].mac) !=
-            lattice::utils::MacAddress(deviceMacAddress))
+        lattice::utils::MacAddress(peerMacs[i].mac) != lattice::utils::MacAddress(deviceMacAddress))
       return &peerMacs[i];
   }
   return nullptr;
@@ -423,9 +408,8 @@ bool Mesh::init() {
 
 bool Mesh::setupWiFi() {
   WiFi.mode(WIFI_STA);
-  lattice::err::checkEsp(
-      esp_wifi_set_channel(lattice::config::WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE),
-      lattice::utils::ErrorType::HARDWARE_FAILURE, "Failed to set WiFi channel");
+  lattice::err::checkEsp(esp_wifi_set_channel(lattice::config::WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE),
+                         lattice::utils::ErrorType::HARDWARE_FAILURE, "Failed to set WiFi channel");
 
   readMacAddress();
   return true;
@@ -475,23 +459,20 @@ void Mesh::loadOrGenerateKeypair() {
   ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
                               reinterpret_cast<const uint8_t*>(pers), strlen(pers));
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 1,
-                           "MESH: keypair gen — entropy seed failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 1,
+                        "MESH: keypair gen — entropy seed failed");
   }
 
   ret = mbedtls_ecp_group_load(&grp, MBEDTLS_ECP_DP_CURVE25519);
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 2,
-                           "MESH: keypair gen — ecp_group_load failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 2,
+                        "MESH: keypair gen — ecp_group_load failed");
   }
 
   ret = mbedtls_ecdh_gen_public(&grp, &d, &Q, mbedtls_ctr_drbg_random, &ctr_drbg);
   if (ret != 0) {
-    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG,
-                           lattice::core::ModuleDigit::MESH, 3,
-                           "MESH: keypair gen — ecdh_gen_public failed");
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::CONFIG, lattice::core::ModuleDigit::MESH, 3,
+                        "MESH: keypair gen — ecdh_gen_public failed");
   }
 
   // Export private scalar (d) — 32 bytes big-endian (NEVER printed to serial)
@@ -512,9 +493,8 @@ void Mesh::loadOrGenerateKeypair() {
 bool Mesh::setupEspNow() {
   esp_err_t res = esp_now_init();
   if (res != ESP_OK) {
-    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
-                          lattice::core::ModuleDigit::MESH, 3,
-                          (String("MESH: esp_now_init failed: ") + esp_err_to_name(res)).c_str());
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::MESH, 3,
+                       (String("MESH: esp_now_init failed: ") + esp_err_to_name(res)).c_str());
     return false;
   }
   esp_now_set_pmk(meshKey);
@@ -640,9 +620,8 @@ void Mesh::sendMessage(const uint8_t target[6], mesh_message msg) {
   if (result == ESP_OK) {
     Logger::logln("MESH", "Message sent to peer", LogLevel::LOG_DEBUG);
   } else {
-    lattice::err::fail(
-        lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::MESH, 5,
-        (String("MESH: Error sending message: ") + esp_err_to_name(result)).c_str());
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::MESH, 5,
+                       (String("MESH: Error sending message: ") + esp_err_to_name(result)).c_str());
   }
 }
 
@@ -675,15 +654,14 @@ void Mesh::transmitCore(const adapter_types type, const uint8_t data[64], MeshMe
 
   // Routing: always use next hop if possible
   PeerInfo* nextHop = findNextHopToMaster();
-  if (nextHop && lattice::utils::MacAddress(nextHop->mac) !=
-                     lattice::utils::MacAddress(deviceMacAddress)) {
+  if (nextHop &&
+      lattice::utils::MacAddress(nextHop->mac) != lattice::utils::MacAddress(deviceMacAddress)) {
     sendMessage(nextHop->mac, msg);
   } else {
     Logger::logln("MESH", "No next hop to master — message dropped. Master timeout or unreachable.",
                   LogLevel::LOG_WARN);
-    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
-                          lattice::core::ModuleDigit::MESH, 8,
-                          "MESH: message dropped, no route to master");
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM, lattice::core::ModuleDigit::MESH, 8,
+                       "MESH: message dropped, no route to master");
   }
 }
 
@@ -729,9 +707,8 @@ void Mesh::broadcastMasterBeacon() {
 void Mesh::addPeer(const uint8_t mac[6]) {
   if (!findPeer(mac)) {
     if (peerCount >= MAX_PEERS) {
-      lattice::err::fail(lattice::core::ErrorTypeDigit::MEMORY,
-                            lattice::core::ModuleDigit::MESH, 6,
-                            "Peer list full! Cannot add new peer. MAX_PEERS reached.");
+      lattice::err::fail(lattice::core::ErrorTypeDigit::MEMORY, lattice::core::ModuleDigit::MESH, 6,
+                         "Peer list full! Cannot add new peer. MAX_PEERS reached.");
       Logger::logln("MESH", "Peer list is full, skipping add", LogLevel::LOG_WARN);
       return;
     }

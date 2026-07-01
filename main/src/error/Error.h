@@ -32,8 +32,8 @@ inline ::lattice::core::ErrorTypeDigit toDigit(utils::ErrorType t) {
 }
 
 // Primary fail overload using digit components
-inline bool fail(::lattice::core::ErrorTypeDigit t, ::lattice::core::ModuleDigit m,
-                 uint8_t sub, const char* msg) {
+inline bool fail(::lattice::core::ErrorTypeDigit t, ::lattice::core::ModuleDigit m, uint8_t sub,
+                 const char* msg) {
   utils::Logger::logln("ERROR", msg, utils::LogLevel::LOG_ERROR);
   utils::ErrorCore::getInstance().signalError(t, m, sub, msg);
   return false;
@@ -43,8 +43,8 @@ inline bool fail(::lattice::core::ErrorTypeDigit t, ::lattice::core::ModuleDigit
 inline bool fail(utils::ErrorType type, const char* msg) {
   return fail(toDigit(type), ::lattice::core::ModuleDigit::CORE, 0, msg);
 }
-[[noreturn]] inline void fatal(::lattice::core::ErrorTypeDigit t,
-                               ::lattice::core::ModuleDigit m, uint8_t sub, const char* msg) {
+[[noreturn]] inline void fatal(::lattice::core::ErrorTypeDigit t, ::lattice::core::ModuleDigit m,
+                               uint8_t sub, const char* msg) {
   utils::Logger::logln("FATAL", msg, utils::LogLevel::LOG_ERROR);
   utils::ErrorCore::getInstance().signalError(t, m, sub, msg);
   while (true) {

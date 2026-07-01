@@ -21,8 +21,7 @@ enum class ErrorType : uint8_t {
 class ErrorCore {
 public:
   static ErrorCore& getInstance();
-  void init(lattice::hardware::Led* led,
-            lattice::hardware::SevenSegDisplay* display = nullptr);
+  void init(lattice::hardware::Led* led, lattice::hardware::SevenSegDisplay* display = nullptr);
   void signalError(core::ErrorTypeDigit t, core::ModuleDigit m, uint8_t sub,
                    const char* msg = nullptr);
   void signalError(ErrorType type, const char* msg = nullptr);
