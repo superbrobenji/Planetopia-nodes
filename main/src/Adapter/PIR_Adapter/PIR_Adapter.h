@@ -5,7 +5,7 @@
 #include "src/hardware/input/Pir.h"
 #include <cstdint>
 
-namespace planetopia {
+namespace lattice {
 namespace adapter {
 
 class PIR_Adapter : public Adapter {
@@ -13,7 +13,7 @@ public:
   explicit PIR_Adapter(int pin);
   bool init() override;
   void loop() override;
-  void onMeshDataImpl(const planetopia::mesh::mesh_message& message) override;
+  void onMeshDataImpl(const lattice::mesh::mesh_message& message) override;
 
   // Trampoline for interrupt (must be static):
   static void detectMotionTrampoline();
@@ -43,6 +43,6 @@ private:
 };
 
 } // namespace adapter
-} // namespace planetopia
+} // namespace lattice
 
 #endif

@@ -9,7 +9,7 @@
 #include "persistence/EEPROM_Manager.h"
 #include "Mesh/Mesh.h"
 
-using namespace planetopia::adapter;
+using namespace lattice::adapter;
 
 // Capture buffer for transmitted data
 static adapter_types lastTxType;
@@ -26,7 +26,7 @@ class PIRHealthTest : public ::testing::Test {
 protected:
   void SetUp() override {
     EEPROM.reset();
-    planetopia::utils::EEPROM_Manager::getInstance().init();
+    lattice::utils::EEPROM_Manager::getInstance().init();
     resetMillis();
     resetWifiMock();
     lastTxType = adapter_types::UNKNOWN_ADAPTER;
@@ -159,7 +159,7 @@ TEST_F(PIRHealthTest, OpNodeIdSet_AssignsNodeId_WhenTargetMatchesMac) {
   mockDeviceMac[4] = 0x55;
   mockDeviceMac[5] = 0x66;
 
-  planetopia::mesh::mesh_message msg{};
+  lattice::mesh::mesh_message msg{};
   msg.dataType = adapter_types::SERIAL_ADAPTER;
   msg.data[0] = 0xC0; // OP_NODE_ID_SET
   // target MAC = mockDeviceMac
@@ -168,7 +168,7 @@ TEST_F(PIRHealthTest, OpNodeIdSet_AssignsNodeId_WhenTargetMatchesMac) {
 
   pir->onMeshData(msg);
 
-  EXPECT_EQ(planetopia::utils::EEPROM_Manager::getInstance().loadNodeId(), 99u);
+  EXPECT_EQ(lattice::utils::EEPROM_Manager::getInstance().loadNodeId(), 99u);
   delete pir;
 }
 
@@ -183,7 +183,7 @@ TEST_F(PIRHealthTest, OpNodeIdSet_IgnoresMessage_WhenTargetMismatch) {
   mockDeviceMac[4] = 0xEE;
   mockDeviceMac[5] = 0xFF;
 
-  planetopia::mesh::mesh_message msg{};
+  lattice::mesh::mesh_message msg{};
   msg.dataType = adapter_types::SERIAL_ADAPTER;
   msg.data[0] = 0xC0;
   uint8_t differentMac[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
@@ -192,6 +192,6 @@ TEST_F(PIRHealthTest, OpNodeIdSet_IgnoresMessage_WhenTargetMismatch) {
 
   pir->onMeshData(msg);
 
-  EXPECT_EQ(planetopia::utils::EEPROM_Manager::getInstance().loadNodeId(), 0u);
+  EXPECT_EQ(lattice::utils::EEPROM_Manager::getInstance().loadNodeId(), 0u);
   delete pir;
 }

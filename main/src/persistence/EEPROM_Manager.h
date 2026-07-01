@@ -6,7 +6,7 @@
 #include "src/core/Logger.h"
 #include "../../project_config.h"
 
-namespace planetopia {
+namespace lattice {
 namespace utils {
 
 // EEPROM address constants - centralized in one place
@@ -155,8 +155,8 @@ public:
   void clearKnownMasterMacSecondary();
 
   // TX power preset — deployment-specific, persisted across reboots
-  planetopia::config::TxPowerPreset loadTxPowerPreset();
-  void saveTxPowerPreset(planetopia::config::TxPowerPreset preset);
+  lattice::config::TxPowerPreset loadTxPowerPreset();
+  void saveTxPowerPreset(lattice::config::TxPowerPreset preset);
 
   // Node ID — logical node ID assigned by server (0 = unset)
   uint8_t loadNodeId();
@@ -180,6 +180,6 @@ public:
 };
 
 } // namespace utils
-} // namespace planetopia
+} // namespace lattice
 
 #endif // EEPROM_MANAGER_H

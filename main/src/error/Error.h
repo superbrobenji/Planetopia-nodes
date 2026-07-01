@@ -7,12 +7,12 @@
 #include <esp_err.h>
 #include <cstdint>
 
-namespace planetopia {
+namespace lattice {
 namespace err {
 
 // Helper: map legacy ErrorType to ErrorTypeDigit
-inline ::planetopia::core::ErrorTypeDigit toDigit(utils::ErrorType t) {
-  using namespace planetopia::core;
+inline ::lattice::core::ErrorTypeDigit toDigit(utils::ErrorType t) {
+  using namespace lattice::core;
   switch (t) {
   case utils::ErrorType::GENERIC:
     return ErrorTypeDigit::GENERIC;
@@ -32,7 +32,7 @@ inline ::planetopia::core::ErrorTypeDigit toDigit(utils::ErrorType t) {
 }
 
 // Primary fail overload using digit components
-inline bool fail(::planetopia::core::ErrorTypeDigit t, ::planetopia::core::ModuleDigit m,
+inline bool fail(::lattice::core::ErrorTypeDigit t, ::lattice::core::ModuleDigit m,
                  uint8_t sub, const char* msg) {
   utils::Logger::logln("ERROR", msg, utils::LogLevel::LOG_ERROR);
   utils::ErrorCore::getInstance().signalError(t, m, sub, msg);
@@ -41,17 +41,17 @@ inline bool fail(::planetopia::core::ErrorTypeDigit t, ::planetopia::core::Modul
 
 // Legacy fail – keeps compatibility while showing a generic error code (sub-code 0)
 inline bool fail(utils::ErrorType type, const char* msg) {
-  return fail(toDigit(type), ::planetopia::core::ModuleDigit::CORE, 0, msg);
+  return fail(toDigit(type), ::lattice::core::ModuleDigit::CORE, 0, msg);
 }
-[[noreturn]] inline void fatal(::planetopia::core::ErrorTypeDigit t,
-                               ::planetopia::core::ModuleDigit m, uint8_t sub, const char* msg) {
+[[noreturn]] inline void fatal(::lattice::core::ErrorTypeDigit t,
+                               ::lattice::core::ModuleDigit m, uint8_t sub, const char* msg) {
   utils::Logger::logln("FATAL", msg, utils::LogLevel::LOG_ERROR);
   utils::ErrorCore::getInstance().signalError(t, m, sub, msg);
   while (true) {
   }
 }
 [[noreturn]] inline void fatal(utils::ErrorType type, const char* msg) {
-  fatal(toDigit(type), ::planetopia::core::ModuleDigit::CORE, 0, msg);
+  fatal(toDigit(type), ::lattice::core::ModuleDigit::CORE, 0, msg);
 }
 inline bool check(bool condition, utils::ErrorType type, const char* msg) {
   return condition ? true : fail(type, msg);
@@ -64,18 +64,18 @@ inline bool checkEsp(esp_err_t status, utils::ErrorType type, const char* msg) {
   return fail(type, msg);
 }
 } // namespace err
-} // namespace planetopia
+} // namespace lattice
 
 template <typename... Args> inline bool ERROR_ASSERT(bool cond, const char* msg) {
-  return planetopia::err::check(cond, planetopia::utils::ErrorType::CONFIG_ERROR, msg);
+  return lattice::err::check(cond, lattice::utils::ErrorType::CONFIG_ERROR, msg);
 }
 
 template <typename T> inline bool ERROR_CHECK(bool cond, T t, const char* msg) {
-  return planetopia::err::check(cond, t, msg);
+  return lattice::err::check(cond, t, msg);
 }
 
 template <typename T> inline bool ERROR_CHECK_ESP_OK(esp_err_t expr, T t, const char* msg) {
-  return planetopia::err::checkEsp(expr, t, msg);
+  return lattice::err::checkEsp(expr, t, msg);
 }
 
 #endif

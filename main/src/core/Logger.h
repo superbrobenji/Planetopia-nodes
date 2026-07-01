@@ -4,11 +4,11 @@
 #include <Arduino.h>
 #include <cstdio>
 
-#ifndef PLANETOPIA_LOG_LEVEL
-#define PLANETOPIA_LOG_LEVEL 3 // 0=none 1=error 2=warn 3=info 4=debug
+#ifndef LATTICE_LOG_LEVEL
+#define LATTICE_LOG_LEVEL 3 // 0=none 1=error 2=warn 3=info 4=debug
 #endif
 
-#if PLANETOPIA_LOG_LEVEL >= 4
+#if LATTICE_LOG_LEVEL >= 4
 #define LOG_D(tag, fmt, ...)                                                                       \
   do {                                                                                             \
     char _buf[128];                                                                                \
@@ -21,7 +21,7 @@
   } while (0)
 #endif
 
-namespace planetopia {
+namespace lattice {
 namespace utils {
 
 enum class LogLevel : uint8_t {
@@ -50,5 +50,5 @@ private:
 };
 
 } // namespace utils
-} // namespace planetopia
+} // namespace lattice
 #endif

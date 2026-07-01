@@ -1,5 +1,5 @@
 #include "PIR_Adapter.h"
-#include "lib/planetopia-protocol/c/opcodes.h"
+#include "lib/lattice-protocol/c/opcodes.h"
 #include <cstdint>
 #include <cstring>
 #include "src/core/Logger.h"
@@ -8,10 +8,10 @@
 #include "src/Adapter/AdapterFactory.h"
 #include <esp_wifi.h>
 
-namespace planetopia {
+namespace lattice {
 namespace adapter {
 
-using namespace planetopia::utils;
+using namespace lattice::utils;
 
 PIR_Adapter* PIR_Adapter::instance = nullptr;
 
@@ -28,8 +28,8 @@ bool PIR_Adapter::init() {
   }
 
   if (!_pir.init()) {
-    planetopia::err::fail(planetopia::core::ErrorTypeDigit::CONFIG,
-                          planetopia::core::ModuleDigit::ADAPTER, 1,
+    lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG,
+                          lattice::core::ModuleDigit::ADAPTER, 1,
                           "PIR_Adapter: PIR hardware failed to initialize.");
     return false;
   }
@@ -108,21 +108,21 @@ void PIR_Adapter::loop() {
     _motionSent = false;
 
     if (!_pir.attachInterrupt(PIR_Adapter::detectMotionTrampoline, RISING)) {
-      planetopia::err::fail(planetopia::core::ErrorTypeDigit::HARDWARE,
-                            planetopia::core::ModuleDigit::ADAPTER, 2,
+      lattice::err::fail(lattice::core::ErrorTypeDigit::HARDWARE,
+                            lattice::core::ModuleDigit::ADAPTER, 2,
                             "PIR_Adapter: Could not re-attach interrupt (possible hardware error)");
       return;
     }
     _interruptEnabled = true;
   }
 
-  if (now - _lastHealthMillis >= planetopia::config::HEALTH_REPORT_INTERVAL_MS) {
+  if (now - _lastHealthMillis >= lattice::config::HEALTH_REPORT_INTERVAL_MS) {
     _lastHealthMillis = now;
     sendNodeHealth();
   }
 }
 
-void PIR_Adapter::onMeshDataImpl(const planetopia::mesh::mesh_message& /*message*/) {
+void PIR_Adapter::onMeshDataImpl(const lattice::mesh::mesh_message& /*message*/) {
   // No-op for PIR: currently nothing to do on inbound messages of this type
 }
 
@@ -135,4 +135,4 @@ void PIR_Adapter::simulateMotion() {
 #endif
 
 } // namespace adapter
-} // namespace planetopia
+} // namespace lattice

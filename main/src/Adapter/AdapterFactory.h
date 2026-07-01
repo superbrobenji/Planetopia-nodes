@@ -4,7 +4,7 @@
 #include "Adapter.h"
 #include <Arduino.h>
 
-namespace planetopia {
+namespace lattice {
 namespace adapter {
 
 // Default pins for each adapter type
@@ -44,5 +44,5 @@ private:
 };
 
 } // namespace adapter
-} // namespace planetopia
+} // namespace lattice
 #endif

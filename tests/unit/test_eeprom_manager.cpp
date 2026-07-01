@@ -3,9 +3,9 @@
 #include "persistence/EEPROM_Manager.h"
 #include "Mesh/Mesh.h" // for PeerInfo and PEER_RECORD_SIZE constants
 
-using planetopia::mesh::PeerInfo;
-using planetopia::utils::EEPROM_Manager;
-using planetopia::utils::EEPROM_SIZES::PEER_RECORD_SIZE;
+using lattice::mesh::PeerInfo;
+using lattice::utils::EEPROM_Manager;
+using lattice::utils::EEPROM_SIZES::PEER_RECORD_SIZE;
 
 // -----------------------------------------------------------------------
 // Test fixture
@@ -155,7 +155,7 @@ TEST_F(EEPROMMgrTest, Keypair_Load_CorruptedData_ReturnsFalse) {
   mgr.saveKeypair(priv, pub);
 
   // Corrupt one byte in the private key region
-  using namespace planetopia::utils::EEPROM_ADDRESSES;
+  using namespace lattice::utils::EEPROM_ADDRESSES;
   EEPROM._data[PRIVATE_KEY + 5] ^= 0xFF;
 
   uint8_t p1[32]{}, p2[32]{};
@@ -224,13 +224,13 @@ TEST_F(EEPROMMgrTest, ForceFlush_CommitsImmediately) {
 TEST_F(EEPROMMgrTest, TxPower_DefaultIsOutdoor) {
   // Blank EEPROM (0xFF) → default preset
   auto preset = EEPROM_Manager::getInstance().loadTxPowerPreset();
-  EXPECT_EQ(preset, planetopia::config::TxPowerPreset::OUTDOOR);
+  EXPECT_EQ(preset, lattice::config::TxPowerPreset::OUTDOOR);
 }
 
 TEST_F(EEPROMMgrTest, TxPower_SaveAndLoad) {
   auto& mgr = EEPROM_Manager::getInstance();
-  mgr.saveTxPowerPreset(planetopia::config::TxPowerPreset::INDOOR);
-  EXPECT_EQ(mgr.loadTxPowerPreset(), planetopia::config::TxPowerPreset::INDOOR);
+  mgr.saveTxPowerPreset(lattice::config::TxPowerPreset::INDOOR);
+  EXPECT_EQ(mgr.loadTxPowerPreset(), lattice::config::TxPowerPreset::INDOOR);
 }
 
 // -----------------------------------------------------------------------

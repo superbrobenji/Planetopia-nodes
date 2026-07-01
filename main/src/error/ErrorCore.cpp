@@ -1,10 +1,10 @@
 #include "ErrorCore.h"
 #include "../core/Logger.h"
 #include <esp_system.h>
-using planetopia::core::ErrorTypeDigit;
-using planetopia::core::makeErrorCode;
-using planetopia::core::ModuleDigit;
-namespace planetopia {
+using lattice::core::ErrorTypeDigit;
+using lattice::core::makeErrorCode;
+using lattice::core::ModuleDigit;
+namespace lattice {
 namespace utils {
 ErrorCore::ErrorCore()
     : _errorLed(nullptr), _display(nullptr), _initialized(false), _pendingBlink(false),
@@ -101,4 +101,4 @@ bool ErrorCore::shouldRestart(ErrorType t) const {
   ESP.restart();
 }
 } // namespace utils
-} // namespace planetopia
+} // namespace lattice

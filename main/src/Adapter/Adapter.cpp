@@ -5,14 +5,14 @@
 #include "src/Adapter/AdapterFactory.h"
 #include "src/Adapter/Serial_Adapter/Serial_Adapter.h"
 #include "src/persistence/EEPROM_Manager.h"
-#include "lib/planetopia-protocol/c/opcodes.h"
+#include "lib/lattice-protocol/c/opcodes.h"
 #include <esp_wifi.h>
 #include <cstring>
 
-namespace planetopia {
+namespace lattice {
 namespace adapter {
 
-using namespace planetopia::utils;
+using namespace lattice::utils;
 
 Adapter::Adapter(int pin)
     : _pin(pin), _adapterType(adapter_types::UNKNOWN_ADAPTER), mesh_transmit_fn(nullptr) {
@@ -28,8 +28,8 @@ void Adapter::sendDataThroughMesh(const adapter_types type, const uint8_t data[6
     mesh_transmit_fn(type, data);
     Logger::logln("Adapter", "Data sent through mesh", LogLevel::LOG_DEBUG);
   } else {
-    planetopia::err::fail(planetopia::core::ErrorTypeDigit::CONFIG,
-                          planetopia::core::ModuleDigit::ADAPTER, 1,
+    lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG,
+                          lattice::core::ModuleDigit::ADAPTER, 1,
                           "Adapter: Transmit function not set");
   }
 }
@@ -39,11 +39,11 @@ void Adapter::setTransmitFn(TransmitPtr fn) {
   Logger::logln("Adapter", "Transmit function assigned", LogLevel::LOG_DEBUG);
 }
 
-void Adapter::onMeshData(const planetopia::mesh::mesh_message& message) {
+void Adapter::onMeshData(const lattice::mesh::mesh_message& message) {
   // Handle OP_CONFIG_SET for ALL adapter types — server can reconfigure any node.
   // This must run in the base class so virtual dispatch to per-type no-ops cannot
   // swallow the opcode on PIR/LED/WiFi nodes.
-  // OP_CONFIG_SET = 0xC1 (from lib/planetopia-protocol/opcodes.h)
+  // OP_CONFIG_SET = 0xC1 (from lib/lattice-protocol/opcodes.h)
   if (message.dataType == adapter_types::SERIAL_ADAPTER) {
     const uint8_t op = message.data[0];
     if (op == OP_CONFIG_SET) {
@@ -60,8 +60,8 @@ void Adapter::onMeshData(const planetopia::mesh::mesh_message& message) {
       bool isTarget = allFF || (memcmp(&message.data[1], ownMac, 6) == 0);
       if (isTarget) {
         adapter_types newType =
-            planetopia::adapter::AdapterFactory::adapterTypeFromEEPROM(message.data[7]);
-        planetopia::adapter::AdapterFactory::saveAdapterTypeToEEPROM(newType);
+            lattice::adapter::AdapterFactory::adapterTypeFromEEPROM(message.data[7]);
+        lattice::adapter::AdapterFactory::saveAdapterTypeToEEPROM(newType);
         Logger::logln("ADAPTER", "CONFIG_SET received, restarting with new adapter type",
                       LogLevel::LOG_INFO);
         ESP.restart();
@@ -83,7 +83,7 @@ void Adapter::onMeshData(const planetopia::mesh::mesh_message& message) {
       bool isTarget = allFF || (memcmp(&message.data[1], ownMac, 6) == 0);
       if (isTarget) {
         uint8_t nodeId = message.data[7];
-        planetopia::utils::EEPROM_Manager::getInstance().saveNodeId(nodeId);
+        lattice::utils::EEPROM_Manager::getInstance().saveNodeId(nodeId);
         Logger::logln("ADAPTER", "Node ID assigned: " + String(nodeId), LogLevel::LOG_INFO);
       }
     }
@@ -138,7 +138,7 @@ void Adapter::onMeshData(const planetopia::mesh::mesh_message& message) {
   onMeshDataImpl(message);
 }
 
-void Adapter::onMeshDataImpl(const planetopia::mesh::mesh_message& /*message*/) {
+void Adapter::onMeshDataImpl(const lattice::mesh::mesh_message& /*message*/) {
   // Default no-op in base; subclasses optionally override
 }
 
@@ -147,4 +147,4 @@ bool Adapter::init() {
 }
 
 } // namespace adapter
-} // namespace planetopia
+} // namespace lattice

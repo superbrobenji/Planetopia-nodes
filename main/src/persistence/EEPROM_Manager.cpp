@@ -1,7 +1,7 @@
 #include "EEPROM_Manager.h"
 #include "src/error/Error.h"
 
-namespace planetopia {
+namespace lattice {
 namespace utils {
 
 EEPROM_Manager::EEPROM_Manager()
@@ -28,8 +28,8 @@ bool EEPROM_Manager::beginEEPROM() {
 
 void EEPROM_Manager::handleInitFailure() {
   Logger::logln("EEPROM", "Failed to initialize EEPROM", LogLevel::LOG_ERROR);
-  planetopia::err::fail(planetopia::core::ErrorTypeDigit::MEMORY,
-                        planetopia::core::ModuleDigit::EEPROM, 1,
+  lattice::err::fail(lattice::core::ErrorTypeDigit::MEMORY,
+                        lattice::core::ModuleDigit::EEPROM, 1,
                         "EEPROM_Manager: EEPROM.begin failed");
 }
 
@@ -272,7 +272,7 @@ void EEPROM_Manager::saveMeshKey(const uint8_t* key, size_t keySize) {
 // Peer list operations
 // Each peer record is PEER_RECORD_SIZE (38) bytes: 6-byte MAC + 32-byte Curve25519 public key.
 bool EEPROM_Manager::loadPeerList(uint8_t* peerRecords, size_t maxPeers) {
-  planetopia::err::check(peerRecords != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR,
+  lattice::err::check(peerRecords != nullptr, lattice::utils::ErrorType::CONFIG_ERROR,
                          "loadPeerList: peerRecords null");
   if (!ensureInitialized())
     return false;
@@ -289,7 +289,7 @@ bool EEPROM_Manager::loadPeerList(uint8_t* peerRecords, size_t maxPeers) {
 }
 
 void EEPROM_Manager::savePeerList(const uint8_t* peerRecords, size_t numPeers) {
-  planetopia::err::check(peerRecords != nullptr, planetopia::utils::ErrorType::CONFIG_ERROR,
+  lattice::err::check(peerRecords != nullptr, lattice::utils::ErrorType::CONFIG_ERROR,
                          "savePeerList: peerRecords null");
   if (!ensureInitialized())
     return;
@@ -535,16 +535,16 @@ void EEPROM_Manager::clearKnownMasterMacSecondary() {
 }
 
 // TX power preset operations
-planetopia::config::TxPowerPreset EEPROM_Manager::loadTxPowerPreset() {
+lattice::config::TxPowerPreset EEPROM_Manager::loadTxPowerPreset() {
   if (!ensureInitialized())
-    return planetopia::config::DEFAULT_TX_POWER_PRESET;
+    return lattice::config::DEFAULT_TX_POWER_PRESET;
   uint8_t val = EEPROM.read(EEPROM_ADDRESSES::TX_POWER_PRESET);
   if (val > 2 || val == 0xFF)
-    return planetopia::config::DEFAULT_TX_POWER_PRESET;
-  return static_cast<planetopia::config::TxPowerPreset>(val);
+    return lattice::config::DEFAULT_TX_POWER_PRESET;
+  return static_cast<lattice::config::TxPowerPreset>(val);
 }
 
-void EEPROM_Manager::saveTxPowerPreset(planetopia::config::TxPowerPreset preset) {
+void EEPROM_Manager::saveTxPowerPreset(lattice::config::TxPowerPreset preset) {
   if (!ensureInitialized() || isDevMode)
     return;
   EEPROM.write(EEPROM_ADDRESSES::TX_POWER_PRESET, static_cast<uint8_t>(preset));
@@ -643,4 +643,4 @@ void EEPROM_Manager::printAddress(uint16_t address, uint16_t length) {
 }
 
 } // namespace utils
-} // namespace planetopia
+} // namespace lattice

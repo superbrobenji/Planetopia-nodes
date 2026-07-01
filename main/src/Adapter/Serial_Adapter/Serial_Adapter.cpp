@@ -10,10 +10,10 @@
 #include "src/Adapter/PIR_Adapter/PIR_Adapter.h"
 #endif
 
-namespace planetopia {
+namespace lattice {
 namespace adapter {
 
-using namespace planetopia::utils;
+using namespace lattice::utils;
 
 uint32_t Serial_Adapter::lastHealthMillis = 0;
 
@@ -45,14 +45,14 @@ void Serial_Adapter::sendHealthReport() {
                     " Uptime: " + String(uptimeSec) + "s",
                 LogLevel::LOG_DEBUG);
 
-  if (planetopia::mesh::Mesh::transmit) {
-    planetopia::mesh::Mesh::transmit(adapter_types::SERIAL_ADAPTER, data);
+  if (lattice::mesh::Mesh::transmit) {
+    lattice::mesh::Mesh::transmit(adapter_types::SERIAL_ADAPTER, data);
     Logger::logln("Serial_Adapter", "Health report sent via mesh", LogLevel::LOG_DEBUG);
   } else {
     Logger::logln("Serial_Adapter", "Mesh transmit function not available for health report",
                   LogLevel::LOG_WARN);
-    planetopia::err::fail(planetopia::core::ErrorTypeDigit::COMM,
-                          planetopia::core::ModuleDigit::ADAPTER, 1,
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
+                          lattice::core::ModuleDigit::ADAPTER, 1,
                           "Serial_Adapter: Mesh transmit not available");
   }
 }
@@ -75,12 +75,12 @@ bool Serial_Adapter::init() {
 
 void Serial_Adapter::loop() {
   // Health report: send periodically every 30s, or immediately on hop count change
-  planetopia::mesh::Mesh* meshPtr = planetopia::mesh::Mesh::getInstance();
+  lattice::mesh::Mesh* meshPtr = lattice::mesh::Mesh::getInstance();
   uint32_t currentHopCount = meshPtr ? meshPtr->getHopCount() : 0;
   bool stateChanged = (currentHopCount != lastReportedHopCount);
 
   if (stateChanged ||
-      millis() - lastHealthMillis >= planetopia::config::HEALTH_REPORT_INTERVAL_MS) {
+      millis() - lastHealthMillis >= lattice::config::HEALTH_REPORT_INTERVAL_MS) {
     lastHealthMillis = static_cast<uint32_t>(millis());
     Logger::logln("Serial_Adapter",
                   String(stateChanged ? "Health report triggered by state change (hopCount: "
@@ -105,8 +105,8 @@ void Serial_Adapter::loop() {
 
       if (frameLength == 0 || frameLength > MAX_PAYLOAD) {
         Logger::logln("SERIAL", "Frame parse error", LogLevel::LOG_WARN);
-        planetopia::err::fail(planetopia::core::ErrorTypeDigit::COMM,
-                              planetopia::core::ModuleDigit::ADAPTER, 2,
+        lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
+                              lattice::core::ModuleDigit::ADAPTER, 2,
                               "Serial_Adapter: Invalid frame length");
         // Reset on invalid length
         frameState = FrameState::AwaitingLen1;
@@ -121,8 +121,8 @@ void Serial_Adapter::loop() {
     case FrameState::AwaitingPayload:
       if (frameIndex >= MAX_PAYLOAD) {
         Logger::logln("SERIAL", "Frame parse error", LogLevel::LOG_WARN);
-        planetopia::err::fail(planetopia::core::ErrorTypeDigit::COMM,
-                              planetopia::core::ModuleDigit::ADAPTER, 3,
+        lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
+                              lattice::core::ModuleDigit::ADAPTER, 3,
                               "Serial_Adapter: Frame buffer overflow");
         frameState = FrameState::AwaitingLen1;
         frameLength = 0;
@@ -144,7 +144,7 @@ void Serial_Adapter::loop() {
   }
 }
 
-void Serial_Adapter::onMeshDataImpl(const planetopia::mesh::mesh_message& message) {
+void Serial_Adapter::onMeshDataImpl(const lattice::mesh::mesh_message& message) {
   Logger::logln("Serial_Adapter",
                 "Processing incoming mesh message - Type: " + String((uint8_t)message.messageType) +
                     " DataType: " + String(static_cast<int32_t>(message.dataType)) +
@@ -166,10 +166,10 @@ void Serial_Adapter::onMeshDataImpl(const planetopia::mesh::mesh_message& messag
         Logger::logln("Serial_Adapter", "Invalid TX power preset from mesh, ignoring",
                       LogLevel::LOG_WARN);
       } else {
-        auto preset = static_cast<planetopia::config::TxPowerPreset>(presetByte);
+        auto preset = static_cast<lattice::config::TxPowerPreset>(presetByte);
         EEPROM_Manager::getInstance().saveTxPowerPreset(preset);
         esp_err_t txErr = esp_wifi_set_max_tx_power(
-            static_cast<int8_t>(planetopia::config::TX_POWER_VALUES[presetByte]));
+            static_cast<int8_t>(lattice::config::TX_POWER_VALUES[presetByte]));
         if (txErr != ESP_OK) {
           Logger::logln("Serial_Adapter", String("TX power set failed: ") + esp_err_to_name(txErr),
                         LogLevel::LOG_WARN);
@@ -187,8 +187,8 @@ void Serial_Adapter::onMeshDataImpl(const planetopia::mesh::mesh_message& messag
   if (n == 0) {
     Logger::logln("Serial_Adapter", "Failed to encode mesh message for serial output",
                   LogLevel::LOG_ERROR);
-    planetopia::err::fail(planetopia::core::ErrorTypeDigit::COMM,
-                          planetopia::core::ModuleDigit::ADAPTER, 4,
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
+                          lattice::core::ModuleDigit::ADAPTER, 4,
                           "Serial_Adapter: Message encoding failed");
     return;
   }
@@ -205,7 +205,7 @@ void Serial_Adapter::onMeshDataImpl(const planetopia::mesh::mesh_message& messag
   Logger::logln("Serial_Adapter", "Mesh message sent to serial successfully", LogLevel::LOG_DEBUG);
 }
 
-size_t Serial_Adapter::encodeMeshMessage(const planetopia::mesh::mesh_message& msg, uint8_t* out,
+size_t Serial_Adapter::encodeMeshMessage(const lattice::mesh::mesh_message& msg, uint8_t* out,
                                          size_t outCap) {
   Logger::logln("Serial_Adapter",
                 "Encoding mesh message - Type: " + String((uint8_t)msg.messageType) +
@@ -230,8 +230,8 @@ size_t Serial_Adapter::encodeMeshMessage(const planetopia::mesh::mesh_message& m
   memcpy(pbMsg.data.bytes, msg.data, sizeof(msg.data));
 
   // public_key: only encode for enrollment-related message types when non-zero
-  if (msg.messageType == planetopia::mesh::MeshMessageType::MESH_TYPE_ENROLLMENT ||
-      msg.messageType == planetopia::mesh::MeshMessageType::MESH_TYPE_JOIN_ACK) {
+  if (msg.messageType == lattice::mesh::MeshMessageType::MESH_TYPE_ENROLLMENT ||
+      msg.messageType == lattice::mesh::MeshMessageType::MESH_TYPE_JOIN_ACK) {
     bool nonZero = false;
     for (int i = 0; i < 32; ++i) {
       if (msg.enrollmentPublicKey[i]) {
@@ -259,7 +259,7 @@ size_t Serial_Adapter::encodeMeshMessage(const planetopia::mesh::mesh_message& m
 }
 
 bool Serial_Adapter::decodeMeshMessage(const uint8_t* data, size_t len,
-                                       planetopia::mesh::mesh_message& outMsg) {
+                                       lattice::mesh::mesh_message& outMsg) {
   Logger::logln("Serial_Adapter", "Decoding protobuf message of " + String(len) + " bytes",
                 LogLevel::LOG_DEBUG);
 
@@ -272,8 +272,8 @@ bool Serial_Adapter::decodeMeshMessage(const uint8_t* data, size_t len,
     return false;
   }
 
-  outMsg.messageType = static_cast<planetopia::mesh::MeshMessageType>(pbMsg.messageType);
-  outMsg.dataType = static_cast<planetopia::adapter::adapter_types>(pbMsg.dataType);
+  outMsg.messageType = static_cast<lattice::mesh::MeshMessageType>(pbMsg.messageType);
+  outMsg.dataType = static_cast<lattice::adapter::adapter_types>(pbMsg.dataType);
   outMsg.hopCount = static_cast<uint8_t>(pbMsg.hopCount);
   outMsg.epochNum = pbMsg.epochNum;
   outMsg.seqNum = static_cast<uint16_t>(pbMsg.seqNum);
@@ -293,8 +293,8 @@ bool Serial_Adapter::decodeMeshMessage(const uint8_t* data, size_t len,
   // fields on the wire are meaningful and must not be overwritten.
   // For device-originated relays (ADAPTER_DATA, MASTER_BEACON) the server
   // leaves routing fields blank, so we fill them in with our own MAC.
-  if (outMsg.messageType != planetopia::mesh::MESH_TYPE_JOIN_ACK &&
-      outMsg.messageType != planetopia::mesh::MESH_TYPE_SERIAL_CMD_BROADCAST) {
+  if (outMsg.messageType != lattice::mesh::MESH_TYPE_JOIN_ACK &&
+      outMsg.messageType != lattice::mesh::MESH_TYPE_SERIAL_CMD_BROADCAST) {
     readOwnMac(outMsg.originMacAddress);
     readOwnMac(outMsg.lastHopMacAddress);
   } else {
@@ -307,8 +307,8 @@ bool Serial_Adapter::decodeMeshMessage(const uint8_t* data, size_t len,
 }
 
 void Serial_Adapter::relayEnrollmentToServer(const uint8_t mac[6], const uint8_t pubKey[32]) {
-  planetopia::mesh::mesh_message msg = {};
-  msg.messageType = planetopia::mesh::MeshMessageType::MESH_TYPE_ENROLLMENT;
+  lattice::mesh::mesh_message msg = {};
+  msg.messageType = lattice::mesh::MeshMessageType::MESH_TYPE_ENROLLMENT;
   msg.protoVersion = 1;
   memcpy(msg.originMacAddress, mac, 6);
   memcpy(msg.enrollmentPublicKey, pubKey, 32);
@@ -336,32 +336,32 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
     uint8_t op = data[0];
     if (op == OP_SIM_PIR_TRIGGER) {
       Logger::logln("SIM", "Injecting fake PIR event", LogLevel::LOG_WARN);
-      planetopia::adapter::PIR_Adapter* pirAdapter =
-          planetopia::adapter::PIR_Adapter::getInstance();
+      lattice::adapter::PIR_Adapter* pirAdapter =
+          lattice::adapter::PIR_Adapter::getInstance();
       if (pirAdapter)
         pirAdapter->simulateMotion();
       return;
 
     } else if (op == OP_SIM_FAKE_BEACON && len >= 13) {
       Logger::logln("SIM", "Injecting fake master beacon", LogLevel::LOG_WARN);
-      planetopia::mesh::mesh_message fakeBeacon{};
-      fakeBeacon.protoVersion = planetopia::mesh::PROTO_VERSION;
-      fakeBeacon.messageType = planetopia::mesh::MESH_TYPE_MASTER_BEACON;
+      lattice::mesh::mesh_message fakeBeacon{};
+      fakeBeacon.protoVersion = lattice::mesh::PROTO_VERSION;
+      fakeBeacon.messageType = lattice::mesh::MESH_TYPE_MASTER_BEACON;
       memcpy(fakeBeacon.originMacAddress, &data[1], 6);
       memcpy(&fakeBeacon.epochNum, &data[7], 4);
       memcpy(&fakeBeacon.seqNum, &data[11], 2);
-      planetopia::mesh::Mesh* meshRef = planetopia::mesh::Mesh::getInstance();
+      lattice::mesh::Mesh* meshRef = lattice::mesh::Mesh::getInstance();
       if (meshRef)
         meshRef->injectReceivedMessage(fakeBeacon.originMacAddress, fakeBeacon);
       return;
 
     } else if (op == OP_SIM_DUMP_STATE) {
       Logger::logln("SIM", "=== Mesh State Dump ===", LogLevel::LOG_WARN);
-      planetopia::mesh::Mesh* meshRef = planetopia::mesh::Mesh::getInstance();
+      lattice::mesh::Mesh* meshRef = lattice::mesh::Mesh::getInstance();
       if (meshRef) {
         meshRef->debugDumpRadio();
         for (size_t i = 0; i < meshRef->getPeerCount(); ++i) {
-          const planetopia::mesh::PeerInfo& p = meshRef->getPeerList()[i];
+          const lattice::mesh::PeerInfo& p = meshRef->getPeerList()[i];
           Serial.printf("  Peer[%d]: %02X:%02X:%02X:%02X:%02X:%02X last=%lums\n", (int)i, p.mac[0],
                         p.mac[1], p.mac[2], p.mac[3], p.mac[4], p.mac[5],
                         (unsigned long)p.lastSeenMillis);
@@ -372,11 +372,11 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
   }
 #endif
 
-  planetopia::mesh::mesh_message msg;
+  lattice::mesh::mesh_message msg;
   if (!decodeMeshMessage(data, len, msg)) {
     Logger::logln("Serial_Adapter", "Failed to decode protobuf frame", LogLevel::LOG_ERROR);
-    planetopia::err::fail(planetopia::core::ErrorTypeDigit::COMM,
-                          planetopia::core::ModuleDigit::ADAPTER, 5,
+    lattice::err::fail(lattice::core::ErrorTypeDigit::COMM,
+                          lattice::core::ModuleDigit::ADAPTER, 5,
                           "Serial_Adapter: Failed to decode protobuf frame");
     return;
   }
@@ -387,7 +387,7 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
                 LogLevel::LOG_INFO);
 
   // JOIN_ACK (type=4): server responded to an enrollment request
-  if (msg.messageType == planetopia::mesh::MeshMessageType::MESH_TYPE_JOIN_ACK) {
+  if (msg.messageType == lattice::mesh::MeshMessageType::MESH_TYPE_JOIN_ACK) {
     bool hasKey = false;
     for (int i = 0; i < 32; ++i) {
       if (msg.enrollmentPublicKey[i]) {
@@ -398,7 +398,7 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
     if (hasKey) {
       Logger::logln("Serial_Adapter", "Server approved enrollment, registering peer",
                     LogLevel::LOG_INFO);
-      planetopia::mesh::Mesh* meshInstance = planetopia::mesh::Mesh::getInstance();
+      lattice::mesh::Mesh* meshInstance = lattice::mesh::Mesh::getInstance();
       if (meshInstance) {
         meshInstance->enrollPeer(msg.targetMacAddress, msg.enrollmentPublicKey);
       }
@@ -409,7 +409,7 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
   }
 
   // Only forward adapter data via mesh transmit function; routing fields are managed by Mesh
-  if (msg.messageType == planetopia::mesh::MESH_TYPE_ADAPTER_DATA) {
+  if (msg.messageType == lattice::mesh::MESH_TYPE_ADAPTER_DATA) {
     Logger::logln("Serial_Adapter", "Forwarding adapter data via mesh transmit",
                   LogLevel::LOG_DEBUG);
 
@@ -419,14 +419,14 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
       Logger::logln("Serial_Adapter", "Adapter data forwarded successfully", LogLevel::LOG_DEBUG);
     } else {
       Logger::logln("Serial_Adapter", "transmit function not set", LogLevel::LOG_ERROR);
-      planetopia::err::fail(planetopia::core::ErrorTypeDigit::CONFIG,
-                            planetopia::core::ModuleDigit::ADAPTER, 6,
+      lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG,
+                            lattice::core::ModuleDigit::ADAPTER, 6,
                             "Serial_Adapter: transmit function not set");
     }
-  } else if (msg.messageType == planetopia::mesh::MESH_TYPE_SERIAL_CMD_BROADCAST) {
+  } else if (msg.messageType == lattice::mesh::MESH_TYPE_SERIAL_CMD_BROADCAST) {
     Logger::logln("Serial_Adapter", "Broadcasting adapter data to all peers", LogLevel::LOG_DEBUG);
     // Broadcast adapter data to all peers
-    planetopia::mesh::Mesh::broadcastAdapterDataStatic(msg.dataType, msg.data);
+    lattice::mesh::Mesh::broadcastAdapterDataStatic(msg.dataType, msg.data);
     Logger::logln("Serial_Adapter", "Broadcast sent successfully", LogLevel::LOG_DEBUG);
   } else {
     Logger::logln("Serial_Adapter", "Unknown message type: " + String(msg.messageType),
@@ -465,7 +465,7 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
                           String(static_cast<int32_t>(newType)),
                       LogLevel::LOG_INFO);
 
-        planetopia::adapter::AdapterFactory::saveAdapterTypeToEEPROM(newType);
+        lattice::adapter::AdapterFactory::saveAdapterTypeToEEPROM(newType);
         Logger::logln("Serial_Adapter", "Adapter type saved to EEPROM successfully",
                       LogLevel::LOG_INFO);
         // Pin is automatically inferred from adapter type - no need to store it
@@ -484,10 +484,10 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
       if (presetByte > 2) {
         Logger::logln("Serial_Adapter", "Invalid TX power preset, ignoring", LogLevel::LOG_WARN);
       } else {
-        auto preset = static_cast<planetopia::config::TxPowerPreset>(presetByte);
+        auto preset = static_cast<lattice::config::TxPowerPreset>(presetByte);
         EEPROM_Manager::getInstance().saveTxPowerPreset(preset);
         esp_err_t txErr = esp_wifi_set_max_tx_power(
-            static_cast<int8_t>(planetopia::config::TX_POWER_VALUES[presetByte]));
+            static_cast<int8_t>(lattice::config::TX_POWER_VALUES[presetByte]));
         if (txErr != ESP_OK) {
           Logger::logln("Serial_Adapter", String("TX power set failed: ") + esp_err_to_name(txErr),
                         LogLevel::LOG_WARN);
@@ -496,13 +496,13 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
         }
 
         // Broadcast to all enrolled nodes so entire mesh updates
-        planetopia::mesh::Mesh* meshPtr = planetopia::mesh::Mesh::getInstance();
+        lattice::mesh::Mesh* meshPtr = lattice::mesh::Mesh::getInstance();
         bool isMasterNode = meshPtr && meshPtr->getIsMaster();
         if (isMasterNode) {
           uint8_t fwdData[12] = {};
           fwdData[0] = OP_TX_POWER_SET;
           fwdData[1] = presetByte;
-          planetopia::mesh::Mesh::broadcastAdapterDataStatic(adapter_types::SERIAL_ADAPTER,
+          lattice::mesh::Mesh::broadcastAdapterDataStatic(adapter_types::SERIAL_ADAPTER,
                                                              fwdData);
           Logger::logln("Serial_Adapter", "TX power preset broadcast to mesh", LogLevel::LOG_INFO);
         }
@@ -520,7 +520,7 @@ void Serial_Adapter::handleCompleteFrame(const uint8_t* data, size_t len) {
       bool isTarget = allFF || (memcmp(&msg.data[1], myMac, 6) == 0);
       if (isTarget) {
         uint8_t nodeId = msg.data[7];
-        planetopia::utils::EEPROM_Manager::getInstance().saveNodeId(nodeId);
+        lattice::utils::EEPROM_Manager::getInstance().saveNodeId(nodeId);
         Logger::logln("Serial_Adapter", "Node ID set: " + String(nodeId), LogLevel::LOG_INFO);
       }
     } else {
@@ -576,4 +576,4 @@ bool Serial_Adapter::injectByte(uint8_t byteIn) {
 #endif
 
 } // namespace adapter
-} // namespace planetopia
+} // namespace lattice

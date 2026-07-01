@@ -13,51 +13,51 @@
 #include <memory>
 #include <esp_task_wdt.h>
 
-constexpr unsigned long MASTER_BEACON_INTERVAL_MS = planetopia::config::MASTER_BEACON_INTERVAL_MS;
+constexpr unsigned long MASTER_BEACON_INTERVAL_MS = lattice::config::MASTER_BEACON_INTERVAL_MS;
 
-using namespace planetopia::utils;
+using namespace lattice::utils;
 // Avoid 'mesh' ambiguity by not importing the namespace
-using namespace planetopia::adapter;
-using namespace planetopia::hardware;
+using namespace lattice::adapter;
+using namespace lattice::hardware;
 
 // Pins from config
-constexpr int RED_LED_PIN = planetopia::config::RED_LED_PIN;
-constexpr int GREEN_LED_PIN = planetopia::config::GREEN_LED_PIN;
-constexpr int CONFIG_BUTTON_PIN = planetopia::config::CONFIG_BUTTON_PIN;
-constexpr int RESET_BUTTON_PIN = planetopia::config::RESET_BUTTON_PIN;
+constexpr int RED_LED_PIN = lattice::config::RED_LED_PIN;
+constexpr int GREEN_LED_PIN = lattice::config::GREEN_LED_PIN;
+constexpr int CONFIG_BUTTON_PIN = lattice::config::CONFIG_BUTTON_PIN;
+constexpr int RESET_BUTTON_PIN = lattice::config::RESET_BUTTON_PIN;
 
 constexpr unsigned long BUTTON_HOLD_TIME_MS = 5000;  // 5 seconds
 
 // Compile-time dev flag
-constexpr bool DEV_MODE = planetopia::config::DEV_MODE;
+constexpr bool DEV_MODE = lattice::config::DEV_MODE;
 
 Led greenLed(GREEN_LED_PIN);
 Led redLed(RED_LED_PIN);
 Button configButton(CONFIG_BUTTON_PIN);
 Button resetButton(RESET_BUTTON_PIN);  // New reset button object
 
-SevenSegDisplay sevenSeg(planetopia::config::SEVSEG_DATA_PIN,
-                         planetopia::config::SEVSEG_CLK_PIN);
+SevenSegDisplay sevenSeg(lattice::config::SEVSEG_DATA_PIN,
+                         lattice::config::SEVSEG_CLK_PIN);
 
-planetopia::mesh::Mesh mesh;
-planetopia::mesh::mesh_message transmissionMessage;
+lattice::mesh::Mesh mesh;
+lattice::mesh::mesh_message transmissionMessage;
 
-std::unique_ptr<planetopia::adapter::Adapter> adapter;
+std::unique_ptr<lattice::adapter::Adapter> adapter;
 bool isDevMode = false;                                       // Global variable to track dev mode state
-bool devMasterFlag = planetopia::config::DEFAULT_DEV_MASTER;  // runtime master flag used in dev mode
+bool devMasterFlag = lattice::config::DEFAULT_DEV_MASTER;  // runtime master flag used in dev mode
 
 //define all known MAC addresses for your mesh (update with your real MACs!)
-const uint8_t (*defaultPeerList)[6] = planetopia::config::DEFAULT_PEERS;
-constexpr int NUM_DEFAULT_PEERS = planetopia::config::NUM_DEFAULT_PEERS;
+const uint8_t (*defaultPeerList)[6] = lattice::config::DEFAULT_PEERS;
+constexpr int NUM_DEFAULT_PEERS = lattice::config::NUM_DEFAULT_PEERS;
 
 // Validate configuration for server communication
 static inline void validateServerConfiguration() {
   // Check if this is a master node intended for server communication
   bool isMasterNode = isDevMode ? devMasterFlag : EEPROM_Manager::getInstance().loadMasterFlag();
-  bool hasSerialAdapter = (adapter && adapter->getAdapterType() == planetopia::adapter::adapter_types::SERIAL_ADAPTER);
-  bool loggingDisabled = (planetopia::config::DEFAULT_LOG_LEVEL == planetopia::utils::LogLevel::LOG_NONE);
+  bool hasSerialAdapter = (adapter && adapter->getAdapterType() == lattice::adapter::adapter_types::SERIAL_ADAPTER);
+  bool loggingDisabled = (lattice::config::DEFAULT_LOG_LEVEL == lattice::utils::LogLevel::LOG_NONE);
   
-  if (isMasterNode && !hasSerialAdapter && planetopia::config::DEFAULT_LOG_LEVEL != planetopia::utils::LogLevel::LOG_NONE) {
+  if (isMasterNode && !hasSerialAdapter && lattice::config::DEFAULT_LOG_LEVEL != lattice::utils::LogLevel::LOG_NONE) {
     // This is a potential misconfiguration - master node without serial adapter might cause issues
     Logger::logln("CONFIG", "WARNING: Master node without SERIAL_ADAPTER may cause server communication issues", LogLevel::LOG_WARN);
   }
@@ -70,7 +70,7 @@ static inline void validateServerConfiguration() {
 
 // Keep main thin; adapter handles health/config
 
-void dataRecvCallback(planetopia::mesh::mesh_message message) {
+void dataRecvCallback(lattice::mesh::mesh_message message) {
   Logger::logln("MESH", "Data received callback triggered", LogLevel::LOG_DEBUG);
   if (adapter) {
     adapter->onMeshData(message);
@@ -83,11 +83,11 @@ void setup() {
   
   // Only print startup message if logging is enabled (not LOG_NONE)
   // This prevents text output when using SERIAL_ADAPTER for server communication
-  if (planetopia::config::DEFAULT_LOG_LEVEL != planetopia::utils::LogLevel::LOG_NONE) {
-    Serial.println("Planetopia Starting...");
+  if (lattice::config::DEFAULT_LOG_LEVEL != lattice::utils::LogLevel::LOG_NONE) {
+    Serial.println("Lattice Starting...");
   }
   
-  Logger::setLogLevel(planetopia::config::DEFAULT_LOG_LEVEL);
+  Logger::setLogLevel(lattice::config::DEFAULT_LOG_LEVEL);
 
   // Check and log reset reason; escalate if WDT looping
   {
@@ -130,18 +130,18 @@ void setup() {
   }
 
   // Seven segment conditional init
-  if (planetopia::config::ENABLE_SEVSEG_DISPLAY) {
+  if (lattice::config::ENABLE_SEVSEG_DISPLAY) {
     sevenSeg.init();
-    planetopia::utils::ErrorCore::getInstance().init(&redLed, &sevenSeg);
+    lattice::utils::ErrorCore::getInstance().init(&redLed, &sevenSeg);
   } else {
-    planetopia::utils::ErrorCore::getInstance().init(&redLed, nullptr);
+    lattice::utils::ErrorCore::getInstance().init(&redLed, nullptr);
   }
 
   if (!greenLed.isInitialized()) {
     if (!greenLed.init()) {
       Logger::logln("MAIN", "FATAL: Failed to initialize green LED!", LogLevel::LOG_ERROR);
-      planetopia::err::fatal(planetopia::core::ErrorTypeDigit::HARDWARE,
-                            planetopia::core::ModuleDigit::CORE,
+      lattice::err::fatal(lattice::core::ErrorTypeDigit::HARDWARE,
+                            lattice::core::ModuleDigit::CORE,
                             1,
                             "MAIN: Failed to initialize green LED");
     }
@@ -149,19 +149,19 @@ void setup() {
 
   if (!configButton.init()) {
     Logger::error("Config button initialization failed!");
-    planetopia::err::fail(planetopia::utils::ErrorType::HARDWARE_FAILURE, "Config button init failed!");
+    lattice::err::fail(lattice::utils::ErrorType::HARDWARE_FAILURE, "Config button init failed!");
   }
 
   if (!resetButton.init()) {
     Logger::error("Reset button initialization failed!");
-    planetopia::err::fail(planetopia::utils::ErrorType::HARDWARE_FAILURE, "Reset button init failed!");
+    lattice::err::fail(lattice::utils::ErrorType::HARDWARE_FAILURE, "Reset button init failed!");
   }
 
   // Initialize EEPROM Manager
   if (!EEPROM_Manager::getInstance().init()) {
     Logger::logln("MAIN", "Failed to initialize EEPROM Manager", LogLevel::LOG_ERROR);
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::MEMORY,
-                          planetopia::core::ModuleDigit::CORE,
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::MEMORY,
+                          lattice::core::ModuleDigit::CORE,
                           2,
                           "EEPROM Manager init failed!");
   }
@@ -179,7 +179,7 @@ void setup() {
   Logger::logln("MAIN", String("Running in ") + (isDevMode ? "DEV" : "PRODUCTION") + " mode", LogLevel::LOG_INFO);
 
   // Set dev mode in AdapterFactory and EEPROM Manager
-  planetopia::adapter::AdapterFactory::setDevMode(isDevMode);
+  lattice::adapter::AdapterFactory::setDevMode(isDevMode);
   EEPROM_Manager::getInstance().setDevMode(isDevMode);
 
   // Declare peers to EEPROM (only if not in dev mode and EEPROM is empty)
@@ -193,26 +193,26 @@ void setup() {
 
   // Initialize EEPROM defaults if not set (only if not in dev mode)
   if (!isDevMode) {
-    planetopia::adapter::AdapterFactory::initializeDefaultsIfUnset();
+    lattice::adapter::AdapterFactory::initializeDefaultsIfUnset();
   }
 
   // Create adapter (from EEPROM if production mode, or default if dev mode)
   if (isDevMode) {
     // In dev mode, create default adapter from config
-    adapter.reset(planetopia::adapter::AdapterFactory::createAdapter(
-      planetopia::config::DEFAULT_ADAPTER,
-      planetopia::adapter::AdapterFactory::getDefaultPinForAdapter(planetopia::config::DEFAULT_ADAPTER)));
+    adapter.reset(lattice::adapter::AdapterFactory::createAdapter(
+      lattice::config::DEFAULT_ADAPTER,
+      lattice::adapter::AdapterFactory::getDefaultPinForAdapter(lattice::config::DEFAULT_ADAPTER)));
     Logger::logln("MAIN", "Created default adapter (DEV mode)", LogLevel::LOG_INFO);
   } else {
     // In production mode, create from EEPROM
-    adapter.reset(planetopia::adapter::AdapterFactory::createFromEEPROM());
+    adapter.reset(lattice::adapter::AdapterFactory::createFromEEPROM());
     Logger::logln("MAIN", "Created adapter from EEPROM (PRODUCTION mode)", LogLevel::LOG_INFO);
   }
 
   if (!adapter) {
     Logger::logln("MAIN", "Failed to create adapter", LogLevel::LOG_ERROR);
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::HARDWARE,
-                          planetopia::core::ModuleDigit::CORE,
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::HARDWARE,
+                          lattice::core::ModuleDigit::CORE,
                           3,
                           "MAIN: Failed to create PIR adapter");
   }
@@ -220,8 +220,8 @@ void setup() {
 
   if (!adapter->init()) {
     Logger::logln("MAIN", "Adapter failed to initialize", LogLevel::LOG_ERROR);
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::HARDWARE,
-                          planetopia::core::ModuleDigit::CORE,
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::HARDWARE,
+                          lattice::core::ModuleDigit::CORE,
                           4,
                           "MAIN: Adapter failed to initialize");
   }
@@ -229,8 +229,8 @@ void setup() {
 
   if (!mesh.init()) {
     Logger::logln("MAIN", "Mesh init failed", LogLevel::LOG_ERROR);
-    planetopia::err::fatal(planetopia::core::ErrorTypeDigit::COMM,
-                          planetopia::core::ModuleDigit::MESH,
+    lattice::err::fatal(lattice::core::ErrorTypeDigit::COMM,
+                          lattice::core::ModuleDigit::MESH,
                           1,
                           "MAIN: Mesh init failed — cannot operate without mesh");
   }
@@ -249,7 +249,7 @@ void setup() {
   // The private key is NEVER printed — only the public key is output here.
   if (!mesh.isEnrolled()) {
     const uint8_t* pubKey = mesh.getDevicePublicKey();
-    Serial.print("PLANETOPIA_PUBKEY:");
+    Serial.print("LATTICE_PUBKEY:");
     for (int i = 0; i < 32; ++i) {
       if (pubKey[i] < 0x10) Serial.print("0");
       Serial.print(pubKey[i], HEX);
@@ -277,7 +277,7 @@ void setup() {
   Logger::logln("MESH", "Mesh initialized", LogLevel::LOG_INFO);
   Logger::logln("MAIN", String("Booted as: ") + (isMaster ? "MASTER" : "NODE"), LogLevel::LOG_INFO);
 
-  adapter->setTransmitFn(&planetopia::mesh::Mesh::transmit);
+  adapter->setTransmitFn(&lattice::mesh::Mesh::transmit);
 
   mesh.linkDataRecvCallback(dataRecvCallback);
 
@@ -296,7 +296,7 @@ void setup() {
 }
 
 void loop() {
-  planetopia::utils::ErrorCore::getInstance().drainPendingBlink();
+  lattice::utils::ErrorCore::getInstance().drainPendingBlink();
 
   static bool startupBlinkDone = false;
   if (!startupBlinkDone) {
@@ -310,12 +310,12 @@ void loop() {
   mesh.checkMasterTimeout();
 
   // Display state machine: show node identity on 7-segment display
-  if (planetopia::config::ENABLE_SEVSEG_DISPLAY) {
+  if (lattice::config::ENABLE_SEVSEG_DISPLAY) {
     static uint32_t lastDisplayToggleMs = 0;
     static bool dashVisible = false;
 
     bool enrolled = mesh.isEnrolled() || mesh.getIsMaster(); // master is always "enrolled"
-    uint8_t nodeId = planetopia::utils::EEPROM_Manager::getInstance().loadNodeId();
+    uint8_t nodeId = lattice::utils::EEPROM_Manager::getInstance().loadNodeId();
 
     if (!enrolled) {
       // Unenrolled: flash "----" at 500ms

@@ -14,16 +14,16 @@
 
 #ifdef UNIT_TEST
 // Forward declarations for test fixture classes (global namespace) so that
-// friend declarations inside planetopia::mesh::Mesh are valid.
+// friend declarations inside lattice::mesh::Mesh are valid.
 class ReplayCacheTest;
 class MeshLogicTest;
 #endif
 
-namespace planetopia {
+namespace lattice {
 namespace mesh {
 
-using planetopia::adapter::adapter_types;
-using planetopia::utils::EEPROM_SIZES::MAX_PEERS; // Use constant from EEPROM_Manager
+using lattice::adapter::adapter_types;
+using lattice::utils::EEPROM_SIZES::MAX_PEERS; // Use constant from EEPROM_Manager
 
 // --- Mesh protocol message type ---
 enum MeshMessageType : uint8_t {
@@ -114,7 +114,7 @@ private:
   uint32_t lastBeaconMillis;
   uint32_t lastMasterBeaconReceivedMs;
   static constexpr uint32_t STALE_MASTER_THRESHOLD_MS =
-      planetopia::config::STALE_MASTER_THRESHOLD_MS;
+      lattice::config::STALE_MASTER_THRESHOLD_MS;
 
   // Peer EEPROM management
   void loadPeersFromEEPROM();
@@ -288,6 +288,6 @@ public:
 };
 
 } // namespace mesh
-} // namespace planetopia
+} // namespace lattice
 
 #endif // MESH_H

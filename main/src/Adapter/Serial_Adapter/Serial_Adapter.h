@@ -6,11 +6,11 @@
 #include "src/Mesh/serialization/nanopb/pb_encode.h"
 #include "src/Mesh/serialization/nanopb/pb_decode.h"
 #include "src/Mesh/serialization/mesh.pb.h"
-// Shared protocol constants — source of truth is planetopia-protocol repo (git submodule)
-#include "lib/planetopia-protocol/c/opcodes.h"
-#include "lib/planetopia-protocol/c/adapter_types.h"
+// Shared protocol constants — source of truth is lattice-protocol repo (git submodule)
+#include "lib/lattice-protocol/c/opcodes.h"
+#include "lib/lattice-protocol/c/adapter_types.h"
 
-namespace planetopia {
+namespace lattice {
 namespace adapter {
 
 class Serial_Adapter : public Adapter {
@@ -19,9 +19,9 @@ public:
 
   bool init() override;
   void loop() override;
-  void onMeshDataImpl(const planetopia::mesh::mesh_message& message) override;
+  void onMeshDataImpl(const lattice::mesh::mesh_message& message) override;
 
-  // Opcodes from planetopia-protocol/opcodes.h (included above):
+  // Opcodes from lattice-protocol/opcodes.h (included above):
   //   OP_HEALTH_REQ    0xB0  [B0]
   //   OP_HEALTH_REPORT 0xB1  [B1][1B adapterType][6B mac][4B uptime]
   //   OP_NODE_HEALTH   0xB2  [B2][1B adapterType][6B mac][4B uptime]
@@ -57,12 +57,12 @@ private:
   static constexpr size_t MAX_PAYLOAD = 256;
   uint8_t payloadBuffer[MAX_PAYLOAD];
 
-  static size_t encodeMeshMessage(const planetopia::mesh::mesh_message& msg, uint8_t* out,
+  static size_t encodeMeshMessage(const lattice::mesh::mesh_message& msg, uint8_t* out,
                                   size_t outCap);
   static bool decodeMeshMessage(const uint8_t* data, size_t len,
-                                planetopia::mesh::mesh_message& outMsg);
+                                lattice::mesh::mesh_message& outMsg);
   void handleCompleteFrame(const uint8_t* data, size_t len);
-  // Interpret messageType for Serial control (uses planetopia::mesh::MeshMessageType):
+  // Interpret messageType for Serial control (uses lattice::mesh::MeshMessageType):
   // MESH_TYPE_ADAPTER_DATA (0)         : targeted send via normal mesh transmit (to master)
   // MESH_TYPE_SERIAL_CMD_BROADCAST (3) : broadcast adapter data via mesh (server→device)
   // MESH_TYPE_JOIN_ACK (4)             : server approved or rejected enrollment (server→device)
@@ -85,6 +85,6 @@ private:
 };
 
 } // namespace adapter
-} // namespace planetopia
+} // namespace lattice
 
 #endif // SERIAL_ADAPTER_H

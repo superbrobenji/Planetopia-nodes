@@ -1,6 +1,6 @@
 #include "Logger.h"
 
-namespace planetopia {
+namespace lattice {
 namespace utils {
 
 LogLevel Logger::currentLevel = LogLevel::LOG_DEBUG;
@@ -76,4 +76,4 @@ void Logger::log(const char* tag, const String& message, LogLevel level) {
 }
 
 } // namespace utils
-} // namespace planetopia
+} // namespace lattice

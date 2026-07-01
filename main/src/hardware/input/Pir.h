@@ -3,7 +3,7 @@
 
 #include "GpioInput.h"
 
-namespace planetopia {
+namespace lattice {
 namespace hardware {
 
 class Pir : public GpioInput {
@@ -27,5 +27,5 @@ private:
 };
 
 } // namespace hardware
-} // namespace planetopia
+} // namespace lattice
 #endif

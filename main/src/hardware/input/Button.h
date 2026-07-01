@@ -3,7 +3,7 @@
 
 #include "GpioInput.h"
 
-namespace planetopia {
+namespace lattice {
 namespace hardware {
 
 class Button : public GpioInput {
@@ -22,6 +22,6 @@ private:
 };
 
 } // namespace hardware
-} // namespace planetopia
+} // namespace lattice
 
 #endif

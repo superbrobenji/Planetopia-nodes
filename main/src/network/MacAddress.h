@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <cstring>
 
-namespace planetopia {
+namespace lattice {
 namespace utils {
 
 struct MacAddress {
@@ -54,6 +54,6 @@ inline MacAddress::MacAddress(const String& macString) {
 }
 
 } // namespace utils
-} // namespace planetopia
+} // namespace lattice
 
 #endif

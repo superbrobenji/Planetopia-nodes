@@ -3,11 +3,11 @@
 #include "src/core/Logger.h"
 #include "src/error/Error.h"
 
-using planetopia::core::ErrorTypeDigit;
-using planetopia::core::ModuleDigit;
-using planetopia::utils::Logger;
+using lattice::core::ErrorTypeDigit;
+using lattice::core::ModuleDigit;
+using lattice::utils::Logger;
 
-namespace planetopia {
+namespace lattice {
 namespace hardware {
 
 // 0b0GFEDCBA – bit7 is DP
@@ -35,16 +35,16 @@ SevenSegDisplay::SevenSegDisplay(uint8_t dio, uint8_t clk)
 
 bool SevenSegDisplay::init() {
   if (!GpioOutput::isValidOutputPin(_dioPin) || !GpioOutput::isValidOutputPin(_clkPin)) {
-    Logger::logln("7SEG", "Invalid GPIO pins", planetopia::utils::LogLevel::LOG_ERROR);
-    planetopia::err::fail(planetopia::core::ErrorTypeDigit::CONFIG,
-                          planetopia::core::ModuleDigit::HW, 1, "7Seg invalid pins");
+    Logger::logln("7SEG", "Invalid GPIO pins", lattice::utils::LogLevel::LOG_ERROR);
+    lattice::err::fail(lattice::core::ErrorTypeDigit::CONFIG,
+                          lattice::core::ModuleDigit::HW, 1, "7Seg invalid pins");
     return false;
   }
   pinMode(_dioPin, OUTPUT);
   pinMode(_clkPin, OUTPUT);
   digitalWrite(_clkPin, HIGH);
   digitalWrite(_dioPin, HIGH);
-  Logger::logln("7SEG", "SevenSegDisplay initialized", planetopia::utils::LogLevel::LOG_INFO);
+  Logger::logln("7SEG", "SevenSegDisplay initialized", lattice::utils::LogLevel::LOG_INFO);
   // Self-test: flash all segments 0x7F (88:88)
   uint8_t testSeg[4] = {0x7F, 0x7F, 0x7F, 0x7F};
   setSegments(testSeg);
@@ -115,9 +115,9 @@ bool SevenSegDisplay::writeByte(uint8_t b) {
   pinMode(_dioPin, OUTPUT);
   digitalWrite(_clkPin, LOW);
   if (!ack) {
-    Logger::logln("7SEG", "ACK timeout", planetopia::utils::LogLevel::LOG_WARN);
-    planetopia::err::fail(planetopia::core::ErrorTypeDigit::HARDWARE,
-                          planetopia::core::ModuleDigit::HW, 2, "7Seg ACK timeout");
+    Logger::logln("7SEG", "ACK timeout", lattice::utils::LogLevel::LOG_WARN);
+    lattice::err::fail(lattice::core::ErrorTypeDigit::HARDWARE,
+                          lattice::core::ModuleDigit::HW, 2, "7Seg ACK timeout");
   }
   return ack;
 }
@@ -212,4 +212,4 @@ void SevenSegDisplay::showWithDP(int value, bool leadingZeros) {
 }
 
 } // namespace hardware
-} // namespace planetopia
+} // namespace lattice
